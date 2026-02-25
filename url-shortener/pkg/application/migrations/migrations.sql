@@ -26,8 +26,10 @@ CREATE TABLE clicks (
 	browser VARCHAR(50) NULL,
 	os VARCHAR(50) NULL,
 	country VARCHAR(2) NULL,
-	city VARCHAR(100) NULL
+	city VARCHAR(100) NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 )
 
 CREATE INDEX idx_clicks_link_id_clicked_at ON clicks(link_id, clicked_at);
-CREATE INDEX idx_clicks_country ON clicks(country);
+CREATE INDEX idx_clicks_link_id_country ON clicks(link_id, country);
+CREATE INDEX idx_clicks_country ON clicks USING HASH(country);
