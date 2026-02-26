@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	insertLinksQuery            = "insertLinkQuery"
-	searchLinksByCodeQuery      = "searchLinkByCodeQuery"
-	searchLinksByExpiresAtQuery = "searchLinkByExpiresAtQuery"
-	insertClicksQuery           = "insertClickQuery"
-	searchClicksByLinkIDQuery   = "searchClickByLinkIDQuery"
-	searchClicksByCountryQuery  = "searchClicksByCountryQuery"
+	insertLinksQuery                      = "insertLinksQuery"
+	insertClicksQuery                     = "insertClicksQuery"
+	searchLinksByCodeQuery                = "searchLinksByCodeQuery"
+	searchLinksByExpiresAtQuery           = "searchLinksByExpiresAtQuery"
+	searchClicksByLinkIDAndCountryQuery   = "searchClicksByLinkIDAndCountryQuery"
+	searchClicksByLinkIDAndClickedAtQuery = "searchClicksByLinkIDAndClickedAtQuery"
 )
 
 type Repository struct {
@@ -24,7 +24,7 @@ type Repository struct {
 
 // prepare takes a map of query names and queries then
 // creetes a map of query names and prepared statements.
-func (r Repository) prepare(queries map[string]string) error {
+func (r *Repository) prepare(queries map[string]string) error {
 	for name, query := range queries {
 		stmt, err := r.DB.PrepareNamed(query)
 		if err != nil {
@@ -50,9 +50,9 @@ func databaseQueries() map[string]string {
 
 		insertClicksQuery: `INSERT INTO clicks (link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city) VALUES (:link_id, :clicked_at, :ip_hash, :referrer, :user_agent, :device_type, :browser, :os, :country, :city) RETURNING *`,
 
-		searchClicksByLinkIDQuery: `SELECT * FROM clicks WHERE link_id = :link_id`,
+		searchClicksByLinkIDAndClickedAtQuery: `SELECT * FROM clicks WHERE link_id = :link_id`,
 
-		searchClicksByCountryQuery: `SELECT * FROM clicks WHERE country = :country`,
+		searchClicksByLinkIDAndCountryQuery: `SELECT * FROM clicks WHERE country = :country`,
 	}
 }
 

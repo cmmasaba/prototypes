@@ -9,10 +9,7 @@ import (
 	"github.com/cmmasaba/prototypes/pkg/application/domain"
 )
 
-var (
-	errPreparedStmtNotFound = "prepared statement not found: %s"
-	errReadingRowIntoStruct = "failed to read row into struct: %w"
-)
+var errPreparedStmtNotFound = "prepared statement not found: %s"
 
 // SaveShortLink saves the created shortlink to the database.
 func (r *Repository) SaveShortLink(ctx context.Context, data domain.Link) (*domain.Link, error) {
@@ -32,7 +29,7 @@ func (r *Repository) SaveShortLink(ctx context.Context, data domain.Link) (*doma
 
 	err := row.StructScan(&link)
 	if err != nil {
-		return nil, fmt.Errorf(errReadingRowIntoStruct, err)
+		return nil, err
 	}
 
 	return &domain.Link{
@@ -69,7 +66,7 @@ func (r *Repository) SaveClickData(ctx context.Context, data domain.Click) (*dom
 
 	err := row.StructScan(&click)
 	if err != nil {
-		return nil, fmt.Errorf(errReadingRowIntoStruct, err)
+		return nil, err
 	}
 
 	return &domain.Click{
