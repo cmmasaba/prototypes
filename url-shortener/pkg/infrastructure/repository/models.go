@@ -22,7 +22,7 @@ type Link struct {
 type Click struct {
 	Base
 
-	LinkID     string         `db:"link_id"`
+	LinkID     int64          `db:"link_id"`
 	ClickedAt  time.Time      `db:"clicked_at"`
 	IPHash     sql.NullString `db:"ip_hash"`
 	Referrer   sql.NullString `db:"referrer"`

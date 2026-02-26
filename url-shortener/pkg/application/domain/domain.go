@@ -9,7 +9,7 @@ type Link struct {
 	OriginalURL    string
 	OwnershipToken string
 	CreatedAt      time.Time
-	ExpiresAt      time.Time
+	ExpiresAt      *time.Time
 }
 
 type Click struct {
