@@ -1,19 +1,18 @@
-CREATE SCHEMA 'urlshortener';
+CREATE SCHEMA urlshortener;
 
-SET search_path TO 'urlshortener';
+SET search_path TO urlshortener;
 
 CREATE TABLE links (
 	id BIGSERIAL PRIMARY KEY,
 	short_code VARCHAR(50) UNIQUE NOT NULL,
 	original_url TEXT NOT NULL,
-	ownership_token VARCHAR(64) NOT NULL
-	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+	ownership_token VARCHAR(64) NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	expires_at TIMESTAMPTZ NULL,
 	active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-CREATE UNIQUE INDEX idx_links_short_code ON links USING HASH(short_code);
-CREATE INDEX id_links_expires_at ON links(short_code) WHERE expires_at IS NOT NULL;
+CREATE INDEX id_links_expires_at ON links(expires_at) WHERE expires_at IS NOT NULL;
 
 CREATE TABLE clicks (
 	id BIGSERIAL PRIMARY KEY,
@@ -28,7 +27,7 @@ CREATE TABLE clicks (
 	country VARCHAR(2) NULL,
 	city VARCHAR(100) NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)
+);
 
 CREATE INDEX idx_clicks_link_id_clicked_at ON clicks(link_id, clicked_at);
 CREATE INDEX idx_clicks_link_id_country ON clicks(link_id, country);
