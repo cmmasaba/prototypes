@@ -42,17 +42,17 @@ func (r *Repository) prepare(queries map[string]string) error {
 // Centralizing queries makes them maintainable.
 func databaseQueries() map[string]string {
 	return map[string]string{
-		insertLinksQuery: `INSERT INTO links (short_code, original_url, ownership_token, expires_at) VALUES (:short_code, :original_url, :ownership_token, :expires_at) RETURNING *`,
+		insertLinksQuery: `INSERT INTO urlshortener.links (short_code, original_url, ownership_token, expires_at) VALUES (:short_code, :original_url, :ownership_token, :expires_at) RETURNING *`,
 
-		searchLinksByCodeQuery: `SELECT * FROM links WHERE short_code = :short_code`,
+		searchLinksByCodeQuery: `SELECT * FROM urlshortener.links WHERE short_code = :short_code`,
 
-		searchLinksByExpiresAtQuery: `SELECT * FROM links WHERE expires_at IS NOT NULL`,
+		searchLinksByExpiresAtQuery: `SELECT * FROM urlshortener.links WHERE expires_at IS NOT NULL`,
 
-		insertClicksQuery: `INSERT INTO clicks (link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city) VALUES (:link_id, :clicked_at, :ip_hash, :referrer, :user_agent, :device_type, :browser, :os, :country, :city) RETURNING *`,
+		insertClicksQuery: `INSERT INTO urlshortener.clicks (link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city) VALUES (:link_id, :clicked_at, :ip_hash, :referrer, :user_agent, :device_type, :browser, :os, :country, :city) RETURNING *`,
 
-		searchClicksByLinkIDAndClickedAtQuery: `SELECT * FROM clicks WHERE link_id = :link_id`,
+		searchClicksByLinkIDAndClickedAtQuery: `SELECT * FROM urlshortener.clicks WHERE link_id = :link_id`,
 
-		searchClicksByLinkIDAndCountryQuery: `SELECT * FROM clicks WHERE country = :country`,
+		searchClicksByLinkIDAndCountryQuery: `SELECT * FROM urlshortener.clicks WHERE country = :country`,
 	}
 }
 
@@ -71,6 +71,10 @@ func NewRepository(connString string) (*Repository, error) {
 	}
 
 	if err := r.prepare(databaseQueries()); err != nil {
+		go func() {
+			_ = db.Close()
+		}()
+
 		return nil, err
 	}
 
