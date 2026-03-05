@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - strict_function_checks: true
+    engine: "postgresql"
+    schema: "db/migrations"
+    queries: "db/queries/queries.sql"
+    gen:
+      go:
+        package: "sqlc"
+        out: "pkg/infrastructure/repository/sqlc"
+        sql_package: "pgx/v5"
+        emit_prepared_queries: true
+        output_db_file_name: sqlc.go
+        emit_interface: true

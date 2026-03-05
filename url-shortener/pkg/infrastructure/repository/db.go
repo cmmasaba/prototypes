@@ -2,10 +2,12 @@
 package repository
 
 import (
+	"context"
 	"fmt"
+	"time"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository/sqlc"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -15,26 +17,18 @@ const (
 	searchLinksByExpiresAtQuery           = "searchLinksByExpiresAtQuery"
 	searchClicksByLinkIDAndCountryQuery   = "searchClicksByLinkIDAndCountryQuery"
 	searchClicksByLinkIDAndClickedAtQuery = "searchClicksByLinkIDAndClickedAtQuery"
+
+	defaultMaxConns          = int32(4)
+	defaultMinConns          = int32(0)
+	defaultMaxConnLifetime   = time.Hour
+	defaultMaxConnIdleTime   = time.Minute * 30
+	defaultHealthCheckPeriod = time.Minute
+	defaultConnectTimeout    = time.Second * 5
 )
 
 type Repository struct {
-	DB         *sqlx.DB
-	statements map[string]*sqlx.NamedStmt
-}
-
-// prepare takes a map of query names and queries then
-// creetes a map of query names and prepared statements.
-func (r *Repository) prepare(queries map[string]string) error {
-	for name, query := range queries {
-		stmt, err := r.DB.PrepareNamed(query)
-		if err != nil {
-			return fmt.Errorf("failed to prepare statement '%s': %w", name, err)
-		}
-
-		r.statements[name] = stmt
-	}
-
-	return nil
+	statements map[string]string
+	db         *sqlc.Queries
 }
 
 // databaseQueries builds a map of name:query for used database queries.
@@ -60,22 +54,40 @@ func databaseQueries() map[string]string {
 //
 // connString should be a valid Postgres connection string.
 func NewRepository(connString string) (*Repository, error) {
-	db, err := sqlx.Connect("postgres", connString)
+	dbConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to create pgxpool config: %w", err)
+	}
+
+	dbConfig.MaxConns = defaultMaxConns
+	dbConfig.MinConns = defaultMinConns
+	dbConfig.MaxConnLifetime = defaultMaxConnLifetime
+	dbConfig.MaxConnIdleTime = defaultMaxConnIdleTime
+	dbConfig.HealthCheckPeriod = defaultHealthCheckPeriod
+	dbConfig.ConnConfig.ConnectTimeout = defaultConnectTimeout
+
+	ctx := context.Background()
+
+	connPool, err := pgxpool.NewWithConfig(ctx, dbConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	connection, err := connPool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error acquire db pool connection: %w", err)
+	}
+
+	defer connection.Release()
+
+	err = connection.Ping(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not db: %w", err)
 	}
 
 	r := &Repository{
-		DB:         db,
-		statements: make(map[string]*sqlx.NamedStmt),
-	}
-
-	if err := r.prepare(databaseQueries()); err != nil {
-		go func() {
-			_ = db.Close()
-		}()
-
-		return nil, err
+		statements: databaseQueries(),
+		db:         sqlc.New(connPool),
 	}
 
 	return r, nil

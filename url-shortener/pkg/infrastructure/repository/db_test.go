@@ -15,15 +15,6 @@ func TestNewRepository(t *testing.T) {
 
 	invalidURL := "postgres://invalid:invalid@localhost:0/nonexistent?sslmode=disable"
 
-	expectedStmts := []string{
-		insertLinksQuery,
-		insertClicksQuery,
-		searchLinksByCodeQuery,
-		searchLinksByExpiresAtQuery,
-		searchClicksByLinkIDAndCountryQuery,
-		searchClicksByLinkIDAndClickedAtQuery,
-	}
-
 	type args struct {
 		dbURL string
 	}
@@ -60,28 +51,11 @@ func TestNewRepository(t *testing.T) {
 
 			if tt.name == "happy case: successfully connect to database" {
 				assert.NotNilf(t, r, "expected non-nil repository")
-
-				if err := r.DB.Ping(); err != nil {
-					t.Errorf("cannot reach DB, got: %v", err)
-				}
-
-				// verify prepared stmts are populated
-				for _, name := range expectedStmts {
-					if _, ok := r.statements[name]; !ok {
-						t.Errorf("missing prepared statement: %s", name)
-					}
-				}
 			}
 
 			if tt.name == "sad case: invalid connection string" {
 				assert.Nilf(t, r, "expected nil repository")
 			}
-
-			t.Cleanup(func() {
-				if r != nil {
-					r.DB.Close() // nolint: errcheck
-				}
-			})
 		})
 	}
 }

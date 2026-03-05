@@ -21,7 +21,7 @@ type Click struct {
 	UserAgent  *string
 	DeviceType *string
 	Browser    *string
-	OS         *string
+	Os         *string
 	Country    *string
 	City       *string
 }
