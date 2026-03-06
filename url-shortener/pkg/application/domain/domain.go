@@ -25,3 +25,20 @@ type Click struct {
 	Country    *string
 	City       *string
 }
+
+type User struct {
+	ID              int64
+	Email           string
+	PasswordHash    *string
+	OauthProvider   *string
+	OauthProviderID *string
+	CreatedAt       time.Time
+}
+
+type RefreshToken struct {
+	ID        int64
+	UserID    int64
+	TokenHash string
+	ExpireAt  time.Time
+	CreatedAt *time.Time
+}

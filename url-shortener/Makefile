@@ -9,3 +9,8 @@ migrate_up:
 migrate_down:
 	@echo "==> Running latest downward migrations..."
 	migrate -database $(POSTGRES_URL) -path db/migrations down 1
+
+.PHONY: generate_sql
+generate_sql:
+	@echo "==> Generating sqlc code..."
+	sqlc generate

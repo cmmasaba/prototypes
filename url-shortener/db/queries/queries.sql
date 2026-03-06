@@ -33,3 +33,28 @@ WHERE
 SELECT * FROM clicks
 WHERE
 	link_id= $1 AND country = $2;
+
+-- name: SaveUser :one
+INSERT INTO users (
+	email, password_hash, oauth_provider, oauth_provider_id
+) VALUES (
+	$1, $2, $3, $4
+)
+RETURNING *;
+
+-- name: SaveRefreshToken :exec
+INSERT INTO refresh_tokens (
+	user_id, token_hash, expires_at
+) VALUES (
+	$1, $2, $3
+);
+
+-- name: GetUserByEmail :one
+SELECT * FROM users
+WHERE
+	email = $1;
+
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE
+	id = $1;

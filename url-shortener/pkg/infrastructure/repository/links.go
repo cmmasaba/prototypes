@@ -9,8 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-var errPreparedStmtNotFound = "prepared statement not found: %s"
-
 func stringToPgtypeText(s *string) pgtype.Text {
 	if s != nil {
 		return pgtype.Text{String: *s, Valid: true}

@@ -42,8 +42,8 @@ func (r *Repository) SaveClickData(ctx context.Context, data domain.Click) (*dom
 	}, nil
 }
 
-// GetClicksByClickedAt queries clicks for a given link based on the given time.
-func (r *Repository) GetClicksByClickedAt(ctx context.Context, linkID int64, clickedAt time.Time) ([]domain.Click, error) {
+// GetClicksByLinkIDAndClickedAt queries clicks for a given link based on the given time.
+func (r *Repository) GetClicksByLinkIDAndClickedAt(ctx context.Context, linkID int64, clickedAt time.Time) ([]domain.Click, error) {
 	result, err := r.db.GetClicksByLinkIDAndClickedAt(ctx, sqlc.GetClicksByLinkIDAndClickedAtParams{
 		LinkID:    linkID,
 		ClickedAt: pgtype.Timestamptz{Time: clickedAt, Valid: true},
@@ -73,8 +73,8 @@ func (r *Repository) GetClicksByClickedAt(ctx context.Context, linkID int64, cli
 	return clicks, nil
 }
 
-// GetClicksByCountry queries clicks for a given link based on the given country.
-func (r *Repository) GetClicksByCountry(ctx context.Context, linkID int64, country *string) ([]domain.Click, error) {
+// GetClicksByLinkIDAndCountry queries clicks for a given link based on the given country.
+func (r *Repository) GetClicksByLinkIDAndCountry(ctx context.Context, linkID int64, country *string) ([]domain.Click, error) {
 	result, err := r.db.GetClicksByLinkIDAndCountry(ctx, sqlc.GetClicksByLinkIDAndCountryParams{
 		LinkID:  linkID,
 		Country: stringToPgtypeText(country),

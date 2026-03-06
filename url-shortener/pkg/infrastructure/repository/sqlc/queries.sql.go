@@ -154,6 +154,46 @@ func (q *Queries) GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error) {
 	return items, nil
 }
 
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at FROM users
+WHERE
+	email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at FROM users
+WHERE
+	id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const saveNewClick = `-- name: SaveNewClick :one
 INSERT INTO clicks (
 	link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city
@@ -207,6 +247,25 @@ func (q *Queries) SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Cli
 	return i, err
 }
 
+const saveRefreshToken = `-- name: SaveRefreshToken :exec
+INSERT INTO refresh_tokens (
+	user_id, token_hash, expires_at
+) VALUES (
+	$1, $2, $3
+)
+`
+
+type SaveRefreshTokenParams struct {
+	UserID    int64
+	TokenHash string
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error {
+	_, err := q.db.Exec(ctx, saveRefreshToken, arg.UserID, arg.TokenHash, arg.ExpiresAt)
+	return err
+}
+
 const saveShortLink = `-- name: SaveShortLink :one
 INSERT INTO links (
 	short_code, original_url, ownership_token, expires_at
@@ -239,6 +298,41 @@ func (q *Queries) SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (L
 		&i.CreatedAt,
 		&i.ExpiresAt,
 		&i.Active,
+	)
+	return i, err
+}
+
+const saveUser = `-- name: SaveUser :one
+INSERT INTO users (
+	email, password_hash, oauth_provider, oauth_provider_id
+) VALUES (
+	$1, $2, $3, $4
+)
+RETURNING id, email, password_hash, oauth_provider, oauth_provider_id, created_at
+`
+
+type SaveUserParams struct {
+	Email           string
+	PasswordHash    pgtype.Text
+	OauthProvider   pgtype.Text
+	OauthProviderID pgtype.Text
+}
+
+func (q *Queries) SaveUser(ctx context.Context, arg SaveUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, saveUser,
+		arg.Email,
+		arg.PasswordHash,
+		arg.OauthProvider,
+		arg.OauthProviderID,
+	)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
 	)
 	return i, err
 }
