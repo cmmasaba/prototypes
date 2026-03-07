@@ -1,49 +1,48 @@
 package repository
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewRepository(t *testing.T) {
-	postgresURL, ok := os.LookupEnv("POSTGRES_URL")
-	if !ok {
-		t.Fatal("mandatory environment variable POSTGRES_URL not set")
-	}
+	// postgresURL, ok := os.LookupEnv("POSTGRES_URL")
+	// if !ok {
+	// 	t.Fatal("mandatory environment variable POSTGRES_URL not set")
+	// }
 
-	invalidURL := "postgres://invalid:invalid@localhost:0/nonexistent?sslmode=disable"
+	// invalidURL := "postgres://invalid:invalid@localhost:0/nonexistent?sslmode=disable"
 
-	type args struct {
-		dbURL string
-	}
+	// type args struct {
+	// 	dbURL string
+	// }
 
 	tests := []struct {
-		name    string
-		args    args
+		name string
+		// args    args
 		wantErr bool
 	}{
 		{
-			name:    "happy case: successfully connect to database",
-			args:    args{dbURL: postgresURL},
+			name: "happy case: successfully connect to database",
+			// args:    args{dbURL: postgresURL},
 			wantErr: false,
 		},
 		{
-			name:    "sad case: invalid connection string",
-			args:    args{dbURL: invalidURL},
+			name: "sad case: invalid connection string",
+			// args:    args{dbURL: invalidURL},
 			wantErr: true,
 		},
 		{
-			name:    "sad case: empty connection string",
-			args:    args{dbURL: ""},
+			name: "sad case: empty connection string",
+			// args:    args{dbURL: ""},
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := NewRepository(tt.args.dbURL)
+			r, err := New()
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("TestNewRepository got %v, want %v", err, tt.wantErr)

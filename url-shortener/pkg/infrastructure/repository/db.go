@@ -4,6 +4,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository/sqlc"
@@ -29,6 +30,7 @@ const (
 type Repository struct {
 	statements map[string]string
 	db         *sqlc.Queries
+	pool       *pgxpool.Pool
 }
 
 // databaseQueries builds a map of name:query for used database queries.
@@ -50,10 +52,15 @@ func databaseQueries() map[string]string {
 	}
 }
 
-// NewRepository returns a [Repository] built from the passed connection string.
+// New returns a [Repository] built from the passed connection string.
 //
 // connString should be a valid Postgres connection string.
-func NewRepository(connString string) (*Repository, error) {
+func New() (*Repository, error) {
+	connString, ok := os.LookupEnv("POSTGRES_URL")
+	if !ok {
+		return nil, fmt.Errorf("database connection string string not set")
+	}
+
 	dbConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pgxpool config: %w", err)
@@ -75,20 +82,37 @@ func NewRepository(connString string) (*Repository, error) {
 
 	connection, err := connPool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error acquire db pool connection: %w", err)
+		return nil, fmt.Errorf("failed to acquire pool connection: %w", err)
 	}
 
 	defer connection.Release()
 
 	err = connection.Ping(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("could not db: %w", err)
+		return nil, fmt.Errorf("failed to ping db: %w", err)
 	}
 
 	r := &Repository{
 		statements: databaseQueries(),
 		db:         sqlc.New(connPool),
+		pool:       connPool,
 	}
 
 	return r, nil
+}
+
+func (r *Repository) Ping(ctx context.Context) error {
+	connection, err := r.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to acquire pool connection: %w", err)
+	}
+
+	defer connection.Release()
+
+	err = connection.Ping(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to ping db: %w", err)
+	}
+
+	return nil
 }

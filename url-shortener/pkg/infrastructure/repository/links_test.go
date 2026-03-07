@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -13,11 +12,6 @@ import (
 )
 
 func TestRepository_SaveShortLink(t *testing.T) {
-	postgresURL, ok := os.LookupEnv("POSTGRES_URL")
-	if !ok {
-		t.Fatal("mandatory environment variable POSTGRES_URL not set")
-	}
-
 	url := gofakeit.URL()
 
 	validLink := domain.Link{
@@ -50,7 +44,7 @@ func TestRepository_SaveShortLink(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := NewRepository(postgresURL)
+			r, err := New()
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
@@ -75,28 +69,20 @@ func TestRepository_SaveShortLink(t *testing.T) {
 }
 
 func TestRepository_GetLinkByCode(t *testing.T) {
-	postgresURL, ok := os.LookupEnv("POSTGRES_URL")
-	if !ok {
-		t.Fatal("mandatory environment variable POSTGRES_URL not set")
-	}
-
 	tests := []struct {
 		name       string
-		connString string
 		code       string
 		want       *domain.Link
 		wantErr    bool
 	}{
 		{
 			name:       "happy case: successfully get link by code",
-			connString: postgresURL,
 			code:       "",
 			want:       &domain.Link{},
 			wantErr:    false,
 		},
 		{
 			name:       "sad case: error getting link by code",
-			connString: postgresURL,
 			code:       "",
 			want:       nil,
 			wantErr:    true,
@@ -104,7 +90,7 @@ func TestRepository_GetLinkByCode(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := NewRepository(tt.connString)
+			r, err := New()
 			if err != nil {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}

@@ -2,9 +2,9 @@
 
 ## Database Layer
 
-- pgxpool - performant postgresql driver with connection pooling, automatically uses cached prepared statements
-- sqlc - type-safe Go code generated from SQL
-- migrate - handling database migrations
+- [pgxpool](https://pkg.go.dev/github.com/jackc/pgx/v5@v5.8.0/pgxpool) - performant postgresql driver with connection pooling, automatically uses cached prepared statements
+- [sqlc](https://docs.sqlc.dev/en/latest/index.html) - type-safe Go code generated from SQL
+- [migrate](https://pkg.go.dev/github.com/golang-migrate/migrate/v4@v4.19.1) - handling database migrations
 
 #### BIGSERIAL vs UUID for Primary Keys
 
