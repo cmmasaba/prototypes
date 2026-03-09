@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit"
-	"github.com/cmmasaba/prototypes/pkg/application/domain"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/jxskiss/base62"
 )
 

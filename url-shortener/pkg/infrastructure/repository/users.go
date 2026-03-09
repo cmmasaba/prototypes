@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 
-	"github.com/cmmasaba/prototypes/pkg/application/domain"
-	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository/sqlc"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 )
 
 // SaveUser stores user record in the db

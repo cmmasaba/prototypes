@@ -4,7 +4,7 @@ package infrastructure
 import (
 	"context"
 
-	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 )
 
 type Infrastructure interface {

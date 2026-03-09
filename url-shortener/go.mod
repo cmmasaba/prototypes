@@ -1,4 +1,4 @@
-module github.com/cmmasaba/prototypes
+module github.com/cmmasaba/prototypes/urlshortener
 
 go 1.24.1
 

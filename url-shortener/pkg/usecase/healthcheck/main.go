@@ -4,7 +4,7 @@ package healthcheck
 import (
 	"context"
 
-	"github.com/cmmasaba/prototypes/pkg/infrastructure"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
 )
 
 type Usecase interface {

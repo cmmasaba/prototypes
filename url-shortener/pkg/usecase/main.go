@@ -2,7 +2,7 @@
 package usecase
 
 import (
-	"github.com/cmmasaba/prototypes/pkg/usecase/healthcheck"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
 )
 
 type Usecase struct {

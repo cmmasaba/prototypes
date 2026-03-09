@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/cmmasaba/prototypes/pkg/application/domain"
-	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository/sqlc"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 

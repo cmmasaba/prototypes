@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cmmasaba/prototypes/pkg/infrastructure/repository/sqlc"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
