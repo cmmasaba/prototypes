@@ -6,11 +6,11 @@ import (
 )
 
 type Usecase struct {
-	healthcheck *healthcheck.UsecaseImpl
+	*healthcheck.UsecaseImpl
 }
 
-func New(health *healthcheck.UsecaseImpl) (*Usecase, error) {
+func New(health *healthcheck.UsecaseImpl) *Usecase {
 	return &Usecase{
-		healthcheck: health,
-	}, nil
+		health,
+	}
 }
