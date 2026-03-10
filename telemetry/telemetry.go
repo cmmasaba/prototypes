@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -244,6 +245,56 @@ func RecordError(span otelTrace.Span, err error) {
 // NewHandler returns a new handler to be used a slog.Handler.
 func NewHandler(packageName string) *otelslog.Handler {
 	return otelslog.NewHandler(packageName)
+}
+
+// MultiHandler is a custom type that satsfies slog.Handle interface
+// useful for when you want to flush logs to multiple handlers.
+type MultiHandler struct {
+	handlers []slog.Handler
+}
+
+func NewMultiHandler(handlers ...slog.Handler) *MultiHandler {
+	return &MultiHandler{handlers: handlers}
+}
+
+func (m *MultiHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (m *MultiHandler) Handle(ctx context.Context, r slog.Record) error {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, r.Level) {
+			h.Handle(ctx, r)
+		}
+	}
+
+	return nil
+}
+
+func (m *MultiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	handlers := make([]slog.Handler, len(m.handlers))
+
+	for i, h := range m.handlers {
+		handlers[i] = h.WithAttrs(attrs)
+	}
+
+	return NewMultiHandler(handlers...)
+}
+
+func (m *MultiHandler) WithGroup(name string) slog.Handler {
+	handlers := make([]slog.Handler, len(m.handlers))
+
+	for i, h := range m.handlers {
+		handlers[i] = h.WithGroup(name)
+	}
+
+	return NewMultiHandler(handlers...)
 }
 
 // Meter returns a named meter for recording metrics.
