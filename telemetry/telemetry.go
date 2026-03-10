@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -243,8 +242,8 @@ func RecordError(span otelTrace.Span, err error) {
 }
 
 // NewHandler returns a new handler to be used a slog.Handler.
-func NewHandler(packageName string) *slog.Logger {
-	return otelslog.NewLogger(packageName)
+func NewHandler(packageName string) *otelslog.Handler {
+	return otelslog.NewHandler(packageName)
 }
 
 // Meter returns a named meter for recording metrics.
