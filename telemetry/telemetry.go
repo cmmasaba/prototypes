@@ -242,8 +242,8 @@ func RecordError(span otelTrace.Span, err error) {
 	span.RecordError(err)
 }
 
-// NewLogger returns a reusable slog.Logger bridged to OTel.
-func NewLogger(packageName string) *slog.Logger {
+// NewHandler returns a new handler to be used a slog.Handler.
+func NewHandler(packageName string) *slog.Logger {
 	return otelslog.NewLogger(packageName)
 }
 
