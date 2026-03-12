@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-playground/validator/v10 v10.30.1
+	github.com/grafana/pyroscope-go v1.2.7
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0
 	go.opentelemetry.io/otel v1.42.0
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.18.0
@@ -27,7 +28,9 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/grafana/pyroscope-go/godeltaprof v0.1.9 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
+	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
