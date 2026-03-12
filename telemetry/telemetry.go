@@ -7,9 +7,13 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime"
 	"strconv"
+	"sync"
+	"syscall"
 	"time"
 
+	pyroscope "github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -28,6 +32,10 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.39.0"
 	otelTrace "go.opentelemetry.io/otel/trace"
 )
+
+type ctxKey string
+
+var loggerKey ctxKey = "LoggingMiddlewareKey" //nolint: gochecknoglobals
 
 //nolint:gochecknoglobals
 var headers = map[string]string{
@@ -270,7 +278,10 @@ func (m *MultiHandler) Enabled(ctx context.Context, level slog.Level) bool {
 func (m *MultiHandler) Handle(ctx context.Context, r slog.Record) error {
 	for _, h := range m.handlers {
 		if h.Enabled(ctx, r.Level) {
-			h.Handle(ctx, r)
+			err := h.Handle(ctx, r)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -304,6 +315,7 @@ func Meter(serviceName string) otelMetric.Meter {
 	return otel.Meter(serviceName)
 }
 
+//nolint:ireturn
 func mustInstrument[T any](v T, err error) T {
 	if err != nil {
 		panic(fmt.Sprintf("[telemetry] error creating metric instrument: %v", err))
@@ -318,20 +330,38 @@ type httpMetrics struct {
 	activeRequests  otelMetric.Int64UpDownCounter
 	requestSize     otelMetric.Int64Histogram
 	responseSize    otelMetric.Int64Histogram
+	cpuUsage        otelMetric.Float64ObservableGauge
+	cpuSecondsTotal otelMetric.Float64ObservableCounter
+	memoryUsage     otelMetric.Int64ObservableGauge
+	heapObjects     otelMetric.Int64ObservableGauge
+	goroutineCount  otelMetric.Int64ObservableGauge
+	gcPauseTime     otelMetric.Float64ObservableGauge
+}
+
+type cpuStats struct {
+	timestamp time.Time
+	userTime  float64
+	sysTime   float64
 }
 
 func newHTTPMetrics(serviceName string) *httpMetrics {
 	meter := Meter(serviceName)
 
-	return &httpMetrics{
+	var (
+		lastCPUStats  cpuStats
+		cpuStatsMutex sync.Mutex
+	)
+
+	metrics := &httpMetrics{
 		requestCounter: mustInstrument(meter.Int64Counter(
 			"http.server.requests_total",
 			otelMetric.WithDescription("Total number of HTTP requests processed"),
+			otelMetric.WithUnit("1"),
 		)),
 		requestDuration: mustInstrument(meter.Float64Histogram(
-			"http.server.request_duration_ms",
-			otelMetric.WithDescription("Request duration in milliseconds"),
-			otelMetric.WithUnit("ms"),
+			"http.server.request_duration",
+			otelMetric.WithDescription("HTTP request duration in seconds"),
+			otelMetric.WithUnit("s"),
 		)),
 		activeRequests: mustInstrument(meter.Int64UpDownCounter(
 			"http.server.active_requests",
@@ -340,31 +370,192 @@ func newHTTPMetrics(serviceName string) *httpMetrics {
 		)),
 		requestSize: mustInstrument(meter.Int64Histogram(
 			"http.server.request.body.size",
-			otelMetric.WithDescription("Size of HTTP server request bodies"),
+			otelMetric.WithDescription("Size of request body in bytes"),
 			otelMetric.WithUnit("By"),
 		)),
 		responseSize: mustInstrument(meter.Int64Histogram(
 			"http.server.response.body.size",
-			otelMetric.WithDescription("Size of HTTP server response bodies"),
+			otelMetric.WithDescription("Size of response body in bytes"),
 			otelMetric.WithUnit("By"),
 		)),
+		cpuUsage: mustInstrument(meter.Float64ObservableGauge(
+			"system.cpu.usage",
+			otelMetric.WithDescription("Percentage of CPU used"),
+			otelMetric.WithUnit("%"),
+			otelMetric.WithFloat64Callback(func(ctx context.Context, fo otelMetric.Float64Observer) error {
+				usage, err := calculateCPUUsage(&lastCPUStats, &cpuStatsMutex)
+				if err != nil {
+					slog.Error("error calculating CPU metrics", "err", err)
+
+					return nil
+				}
+
+				fo.Observe(usage)
+
+				return nil
+			}),
+		)),
+		cpuSecondsTotal: mustInstrument(meter.Float64ObservableCounter(
+			"system.cpu.total_seconds",
+			otelMetric.WithDescription("Total CPU time spend"),
+			otelMetric.WithUnit("s"),
+			otelMetric.WithFloat64Callback(func(ctx context.Context, fo otelMetric.Float64Observer) error {
+				var rusage syscall.Rusage
+
+				err := syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+				if err != nil {
+					slog.Error("error calculating CPU metrics", "err", err)
+
+					return nil
+				}
+
+				userSec := float64(rusage.Utime.Sec) + float64(rusage.Utime.Usec)/1e6
+				sysSec := float64(rusage.Stime.Sec) + float64(rusage.Stime.Usec)/1e6
+
+				fo.Observe(userSec, otelMetric.WithAttributes(attribute.String("mode", "user")))
+				fo.Observe(sysSec, otelMetric.WithAttributes(attribute.String("mode", "system")))
+
+				return nil
+			}),
+		)),
+		goroutineCount: mustInstrument(meter.Int64ObservableGauge(
+			"system.cpu.goroutines_count",
+			otelMetric.WithDescription("Number of active goroutines in the system"),
+			otelMetric.WithUnit("1"),
+			otelMetric.WithInt64Callback(func(_ context.Context, io otelMetric.Int64Observer) error {
+				io.Observe(int64(runtime.NumGoroutine()))
+
+				return nil
+			}),
+		)),
 	}
+
+	metrics.memoryUsage = mustInstrument(meter.Int64ObservableGauge(
+		"system.memory.usage",
+		otelMetric.WithDescription("Total system memory used"),
+		otelMetric.WithUnit("By"),
+	))
+	metrics.heapObjects = mustInstrument(meter.Int64ObservableGauge(
+		"system.memory.heap_objects",
+		otelMetric.WithDescription("Number of heap objects in memory"),
+		otelMetric.WithUnit("1"),
+	))
+	metrics.gcPauseTime = mustInstrument(meter.Float64ObservableGauge(
+		"system.memory.gc_pause_time",
+		otelMetric.WithDescription("Most recent GC pause duration"),
+		otelMetric.WithUnit("s"),
+	))
+
+	_, err := meter.RegisterCallback(
+		func(_ context.Context, o otelMetric.Observer) error {
+			var m runtime.MemStats
+
+			runtime.ReadMemStats(&m)
+
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.Alloc), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "alloc")),
+			)
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.HeapAlloc), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "heap_alloc")),
+			)
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.HeapInuse), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "heap_inuse")),
+			)
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.HeapIdle), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "heap_idle")),
+			)
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.StackInuse), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "stack_inuse")),
+			)
+			o.ObserveInt64(metrics.memoryUsage,
+				int64(m.Sys), // nolint: gosec
+				otelMetric.WithAttributes(attribute.String("type", "sys")),
+			)
+
+			o.ObserveInt64(metrics.heapObjects, int64(m.HeapObjects)) // nolint: gosec
+
+			if m.NumGC > 0 {
+				idx := (m.NumGC + 255) % 256
+				o.ObserveFloat64(metrics.gcPauseTime, float64(m.PauseNs[idx])/1e9)
+			}
+
+			return nil
+		},
+		metrics.memoryUsage,
+		metrics.heapObjects,
+		metrics.gcPauseTime,
+	)
+	if err != nil {
+		panic(fmt.Sprintf("silgotel: failed to register memory metrics callback: %v", err))
+	}
+
+	return metrics
 }
 
-// RequestMetrics returns a standard net/http middleware that records HTTP server metrics.
+func calculateCPUUsage(stats *cpuStats, statsMutex *sync.Mutex) (float64, error) {
+	var rusage syscall.Rusage
+
+	err := syscall.Getrusage(syscall.RUSAGE_SELF, &rusage)
+	if err != nil {
+		return 0, err
+	}
+
+	currentUserTime := float64(rusage.Utime.Sec) + float64(rusage.Utime.Usec)/1e6
+	currentSysTime := float64(rusage.Stime.Sec) + float64(rusage.Stime.Usec)/1e6
+	now := time.Now()
+
+	statsMutex.Lock()
+	defer statsMutex.Unlock()
+
+	if stats.timestamp.IsZero() {
+		stats.timestamp = now
+		stats.sysTime = currentSysTime
+		stats.userTime = currentUserTime
+
+		return 0, nil
+	}
+
+	elapsed := now.Sub(stats.timestamp).Seconds()
+	if elapsed <= 0 {
+		return 0, nil
+	}
+
+	delta := (currentUserTime - stats.userTime) + (currentSysTime - stats.sysTime)
+	usage := (delta / elapsed) * 100
+
+	stats.timestamp = now
+	stats.userTime = currentUserTime
+	stats.sysTime = currentSysTime
+
+	maxCPU := float64(runtime.NumCPU()) * 100
+	if usage > maxCPU {
+		usage = maxCPU
+	}
+
+	return usage, nil
+}
+
+// MetricsMiddleware returns a standard net/http middleware that records HTTP server metrics.
 // The serviceName should match the service name used in NewOtelSDK.
-func RequestMetrics(serviceName string) func(http.Handler) http.Handler {
+func MetricsMiddleware(serviceName string) func(http.Handler) http.Handler {
 	m := newHTTPMetrics(serviceName)
 
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := Trace(r.Context(), serviceName, "MetricsMiddleware")
+			defer span.End()
+
 			scheme := r.Header.Get("X-Forwarded-Proto")
 			if scheme == "" {
 				scheme = "http"
 			}
 
-			// Do path normalization
-			route := r.URL.Path // consumers can enrich this via context if needed
+			route := normalizedRoutePattern(r) // consumers can enrich this via context if needed
 
 			baseAttrs := otelMetric.WithAttributes(
 				attribute.String("http.method", r.Method),
@@ -372,7 +563,6 @@ func RequestMetrics(serviceName string) func(http.Handler) http.Handler {
 				attribute.String("url.scheme", scheme),
 			)
 
-			ctx := r.Context()
 			m.activeRequests.Add(ctx, 1, baseAttrs)
 
 			if r.ContentLength > 0 {
@@ -391,14 +581,22 @@ func RequestMetrics(serviceName string) func(http.Handler) http.Handler {
 				attribute.Int("http.status_code", rw.status),
 			)
 
-			durationMs := float64(time.Since(start).Milliseconds())
+			durationSec := time.Since(start).Seconds()
 
 			m.requestCounter.Add(ctx, 1, endAttrs)
-			m.requestDuration.Record(ctx, durationMs, endAttrs)
+			m.requestDuration.Record(ctx, durationSec, endAttrs)
 			m.responseSize.Record(ctx, int64(rw.size), endAttrs)
 			m.activeRequests.Add(ctx, -1, baseAttrs)
 		})
 	}
+}
+
+func normalizedRoutePattern(r *http.Request) string {
+	if r.Pattern != "" {
+		return r.Pattern
+	}
+
+	return r.URL.Path
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code and response size.
@@ -423,4 +621,55 @@ func (rw *responseWriter) Write(b []byte) (int, error) {
 	rw.size += n
 
 	return n, err
+}
+
+// StartProfiler starts and returns a pyroscope profiler. Caller must explicitly
+// call profiler.Stop() upon application exit.
+func StartProfiler(endpoint, serviceName, environment string) (*pyroscope.Profiler, error) {
+	profiler, err := pyroscope.Start(pyroscope.Config{
+		ApplicationName: serviceName,
+		Logger:          pyroscope.StandardLogger,
+		ServerAddress:   endpoint,
+		Tags:            map[string]string{"environment": environment},
+		ProfileTypes: []pyroscope.ProfileType{
+			pyroscope.ProfileGoroutines,
+			pyroscope.ProfileMutexCount,
+			pyroscope.ProfileMutexDuration,
+			pyroscope.ProfileBlockCount,
+			pyroscope.ProfileBlockDuration,
+		},
+	})
+
+	return profiler, err
+}
+
+// LoggingMiddleware returns a standard net/http middleware for logging.
+func LoggingMiddleware(serviceName string) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx, span := Trace(r.Context(), serviceName, "LoggingMiddleware")
+			defer span.End()
+
+			logger := slog.With(
+				"method", r.Method,
+				"path", normalizedRoutePattern(r),
+			)
+
+			ctx = context.WithValue(ctx, loggerKey, logger)
+
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// LoggerFromContext returns a *[slog.Logger] from context.
+//
+//	logger := silotel.LoggerFromContext(ctx).With("user", "user123")
+//	logger.Info("usage example")
+func LoggerFromContext(ctx context.Context) *slog.Logger {
+	if logger, ok := ctx.Value(loggerKey).(*slog.Logger); ok {
+		return logger
+	}
+
+	return slog.Default()
 }
