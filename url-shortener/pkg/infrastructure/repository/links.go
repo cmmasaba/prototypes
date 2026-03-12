@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -45,8 +46,11 @@ func timestampzToTime(t pgtype.Timestamptz) *time.Time {
 	return time
 }
 
-// SaveShortLink saves the created shortlink to the database.
-func (r *Repository) SaveShortLink(ctx context.Context, data domain.Link) (*domain.Link, error) {
+// CreateShortLink returns a *[domain.Link] created from the input data.
+func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*domain.Link, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "CreateShortLink")
+	defer span.End()
+
 	row, err := r.db.SaveShortLink(ctx, sqlc.SaveShortLinkParams{
 		ShortCode:      data.ShortCode,
 		OriginalUrl:    data.OriginalURL,
@@ -67,8 +71,11 @@ func (r *Repository) SaveShortLink(ctx context.Context, data domain.Link) (*doma
 	}, nil
 }
 
-// GetLinkByCode queries links by the given short code.
+// GetLinkByCode returns a *[domain.Link] matching the short code.
 func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Link, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetLinkByCode")
+	defer span.End()
+
 	link, err := r.db.GetShortLinkByCode(ctx, code)
 	if err != nil {
 		return nil, err

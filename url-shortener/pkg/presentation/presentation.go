@@ -95,6 +95,7 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 		LogRequestBody:  func(_ *http.Request) bool { return debugStatus },
 		LogResponseBody: func(_ *http.Request) bool { return debugStatus },
 	}))
+	r.Use(telemetry.MetricsMiddleware(serviceName))
 	r.Use(middleware.Heartbeat("/ping"))
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
@@ -116,7 +117,6 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 
 	// Authenticated routes
 	r.Group(func(r chi.Router) {
-		// r.Use(httprate.(100, time.Minute*1))
 		r.Route("/api", func(r chi.Router) {
 			r.Route("/links", func(r chi.Router) {
 				r.Post("", func(w http.ResponseWriter, r *http.Request) {})

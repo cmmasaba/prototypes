@@ -3,12 +3,16 @@ package repository
 import (
 	"context"
 
+	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 )
 
-// SaveUser stores user record in the db
-func (r *Repository) SaveUser(ctx context.Context, input *domain.User) (*domain.User, error) {
+// CreateUser returns a *[domain.User] created from the input data.
+func (r *Repository) CreateUser(ctx context.Context, input *domain.User) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "CreateUser")
+	defer span.End()
+
 	res, err := r.db.SaveUser(ctx, sqlc.SaveUserParams{
 		Email:           input.Email,
 		PasswordHash:    stringToPgtypeText(input.PasswordHash),
@@ -25,8 +29,11 @@ func (r *Repository) SaveUser(ctx context.Context, input *domain.User) (*domain.
 	return input, nil
 }
 
-// GetUserByEmail get a user by their email
+// GetUserByEmail returns a *[domain.User] matching the email.
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByEmail")
+	defer span.End()
+
 	res, err := r.db.GetUserByEmail(ctx, email)
 	if err != nil {
 		return nil, err
@@ -42,9 +49,15 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 	}, nil
 }
 
-// GetUserByID get a user by their id
-func (r *Repository) GetUserByID(ctx context.Context, id int64) (*domain.User, error) {
-	res, err := r.db.GetUserByID(ctx, id)
+// GetUserByOAuthID returns a *[domain.User] matching the OAuth provider and provider ID.
+func (r *Repository) GetUserByOAuthID(ctx context.Context, oauthProvider, oauthProviderID string) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByOAuthID")
+	defer span.End()
+
+	res, err := r.db.GetUserByOauthID(ctx, sqlc.GetUserByOauthIDParams{
+		OauthProvider:   stringToPgtypeText(&oauthProvider),
+		OauthProviderID: stringToPgtypeText(&oauthProviderID),
+	})
 	if err != nil {
 		return nil, err
 	}

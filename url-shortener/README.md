@@ -24,3 +24,39 @@ Scenarios where UUID is better choice:
 - Distributed systems where multiple nodes generate IDs independently.
 - IDs are exposed publicly (sequential IDs leak count/ordering info)
 - Merging data from multiple databases.
+
+## Authentication
+
+### Email/Password
+
+References:
+
+- [Medium Article](https://medium.com/@loggd/building-secure-authentication-a-complete-guide-to-jwts-passwords-mfa-and-oauth-fdad8d243b91)
+- [PDF on password security](https://docs.cloud.google.com/solutions/modern-password-security-for-system-designers.pdf)
+
+Considerations:
+
+- return the same error message (invalid credentials) for all authentication failures to combat `user enumeration` attacks.
+- for pseudo-random RNGs use libraries that are cryptographically secure that do not produce predictable sequences. Libraries that are not very secure produce predictable sequences i.e given the same seed they always produce the same output and an attacker who can determine/influence the seed can "predict" all random values.
+- to combat CSRF, validate the `Origin` header on all non-GET requests to ensure the request origin in legitimate.
+- Reduce open redirect vulnerabilities by doing proper validation of redirect destinations.
+- implement rate limits on critical endpoints either on IP-level or account-level.
+
+Password Authentication:
+
+- password validation should happen both on client-side and server-side
+- set sensible minimum password requirements i.e minimum and maximum charactler length, what characters are acceptable, enable paste, avoid mandatory password resets, never silently modify user input.
+- to verify password security run 2 checks: entropy-based strength estimation and [breach database checking](https://api.pwnedpasswords.com/range/%7Bfirst5chars%7D)
+- MFA to combat brute force attacks
+- Store passwords in hashed format using algorithms like bcrypt.
+
+Email Verification:
+
+- keep input validation rules simple
+- Send a validation challenge/code to the provided email to confirm it exists, can be contacted and prove ownership
+
+Delegate authentication to OAuth providers
+Use MFA to boost security i.e password, TOTP
+For JWT use ED25519 algorithm instead of HS256
+
+## Telemetry

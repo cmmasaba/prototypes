@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/cmmasaba/prototypes/telemetry"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const (
@@ -34,10 +35,19 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	ok := h.uc.CheckDBConnection(ctx)
 
 	if ok {
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("system up"))
+
+		if _, err := w.Write([]byte(`{"status": "up"}`)); err != nil {
+			span.SetStatus(codes.Error, "an error occured")
+			span.RecordError(err)
+		}
 	} else {
 		w.WriteHeader(http.StatusBadGateway)
-		w.Write([]byte("system down"))
+
+		if _, err := w.Write([]byte(`{"status": "down"}`)); err != nil {
+			span.SetStatus(codes.Error, "an error occured")
+			span.RecordError(err)
+		}
 	}
 }

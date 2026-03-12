@@ -174,14 +174,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	return i, err
 }
 
-const getUserByID = `-- name: GetUserByID :one
+const getUserByOauthID = `-- name: GetUserByOauthID :one
 SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at FROM users
 WHERE
-	id = $1
+	oauth_provider = $1 AND oauth_provider_id = $2
 `
 
-func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByID, id)
+type GetUserByOauthIDParams struct {
+	OauthProvider   pgtype.Text
+	OauthProviderID pgtype.Text
+}
+
+func (q *Queries) GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByOauthID, arg.OauthProvider, arg.OauthProviderID)
 	var i User
 	err := row.Scan(
 		&i.ID,

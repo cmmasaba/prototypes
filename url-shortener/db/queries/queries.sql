@@ -54,7 +54,7 @@ SELECT * FROM users
 WHERE
 	email = $1;
 
--- name: GetUserByID :one
+-- name: GetUserByOauthID :one
 SELECT * FROM users
 WHERE
-	id = $1;
+	oauth_provider = $1 AND oauth_provider_id = $2;

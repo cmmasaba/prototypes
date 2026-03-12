@@ -11,7 +11,7 @@ import (
 	"github.com/jxskiss/base62"
 )
 
-func TestRepository_SaveShortLink(t *testing.T) {
+func TestRepository_CreateShortLink(t *testing.T) {
 	url := gofakeit.URL()
 
 	validLink := domain.Link{
@@ -49,20 +49,20 @@ func TestRepository_SaveShortLink(t *testing.T) {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
 
-			got, gotErr := r.SaveShortLink(tt.args.ctx, tt.args.input)
+			got, gotErr := r.CreateShortLink(tt.args.ctx, tt.args.input)
 			if gotErr != nil {
 				if !tt.wantErr {
-					t.Errorf("SaveShortLink() failed: %v", gotErr)
+					t.Errorf("CreateShortLink() failed: %v", gotErr)
 				}
 				return
 			}
 
 			if tt.wantErr {
-				t.Fatal("SaveShortLink() succeeded unexpectedly")
+				t.Fatal("CreateShortLink() succeeded unexpectedly")
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("SaveShortLink() got = %v, want = %v", got, tt.want)
+				t.Errorf("CreateShortLink() got = %v, want = %v", got, tt.want)
 			}
 		})
 	}

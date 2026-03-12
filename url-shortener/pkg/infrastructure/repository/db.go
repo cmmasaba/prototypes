@@ -4,6 +4,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -25,6 +26,8 @@ const (
 	defaultMaxConnIdleTime   = time.Minute * 30
 	defaultHealthCheckPeriod = time.Minute
 	defaultConnectTimeout    = time.Second * 5
+
+	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 )
 
 type Repository struct {
@@ -104,6 +107,8 @@ func New() (*Repository, error) {
 func (r *Repository) Ping(ctx context.Context) error {
 	connection, err := r.pool.Acquire(ctx)
 	if err != nil {
+		slog.Error("failed to acquire pool connection", "err", err)
+
 		return fmt.Errorf("failed to acquire pool connection: %w", err)
 	}
 
@@ -111,6 +116,8 @@ func (r *Repository) Ping(ctx context.Context) error {
 
 	err = connection.Ping(ctx)
 	if err != nil {
+		slog.Error("failed to ping database", "err", err)
+
 		return fmt.Errorf("failed to ping db: %w", err)
 	}
 

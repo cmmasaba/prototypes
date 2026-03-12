@@ -14,7 +14,7 @@ type Querier interface {
 	GetShortLinkByCode(ctx context.Context, shortCode string) (Link, error)
 	GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
-	GetUserByID(ctx context.Context, id int64) (User, error)
+	GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDParams) (User, error)
 	SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Click, error)
 	SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error
 	SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (Link, error)
