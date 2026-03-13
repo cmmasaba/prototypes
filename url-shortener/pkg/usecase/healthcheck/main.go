@@ -5,30 +5,29 @@ import (
 	"context"
 
 	"github.com/cmmasaba/prototypes/telemetry"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
 )
 
 const (
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
 )
 
-type Usecase interface {
-	PingDB(context.Context) bool
+type usecase interface {
+	PingDB(context.Context) error
 }
 
 type UsecaseImpl struct {
-	Usecase
+	infra usecase
 }
 
-func New(infrastructure infrastructure.Infrastructure) *UsecaseImpl {
+func New(infrastructure usecase) *UsecaseImpl {
 	return &UsecaseImpl{
-		Usecase: infrastructure,
+		infra: infrastructure,
 	}
 }
 
-func (u *UsecaseImpl) CheckDBConnection(ctx context.Context) bool {
+func (u *UsecaseImpl) CheckDBConnection(ctx context.Context) error {
 	ctx, span := telemetry.Trace(ctx, packageName, "CheckDBConnection")
 	defer span.End()
 
-	return u.PingDB(ctx)
+	return u.infra.PingDB(ctx)
 }

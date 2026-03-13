@@ -10,6 +10,7 @@ import (
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
@@ -45,7 +46,14 @@ func isRunningInDebug() bool {
 
 // PrepareServer initalizes infrastructure and usecases layers, then sets up the router.
 func PrepareServer() (http.Handler, error) {
-	infrastructure, err := infrastructure.New()
+	database, err := repository.New()
+	if err != nil {
+		slog.Error("error initializing db", "err", err)
+
+		return nil, err
+	}
+
+	infrastructure, err := infrastructure.New(database)
 	if err != nil {
 		slog.Error("error initializing infrastructure layer", "err", err)
 

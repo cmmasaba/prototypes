@@ -14,7 +14,7 @@ const (
 )
 
 type usecases interface {
-	CheckDBConnection(ctx context.Context) bool
+	CheckDBConnection(ctx context.Context) error
 }
 
 type Handlers struct {
@@ -32,22 +32,22 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "HealthCheck")
 	defer span.End()
 
-	ok := h.uc.CheckDBConnection(ctx)
-
-	if ok {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		if _, err := w.Write([]byte(`{"status": "up"}`)); err != nil {
-			span.SetStatus(codes.Error, "an error occured")
-			span.RecordError(err)
-		}
-	} else {
+	err := h.uc.CheckDBConnection(ctx)
+	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 
 		if _, err := w.Write([]byte(`{"status": "down"}`)); err != nil {
 			span.SetStatus(codes.Error, "an error occured")
 			span.RecordError(err)
 		}
+
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if _, err := w.Write([]byte(`{"status": "up"}`)); err != nil {
+		span.SetStatus(codes.Error, "an error occured")
+		span.RecordError(err)
 	}
 }

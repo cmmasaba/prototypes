@@ -104,7 +104,8 @@ func New() (*Repository, error) {
 	return r, nil
 }
 
-func (r *Repository) Ping(ctx context.Context) error {
+// PingDB returns error if the database connection can't be pinged.
+func (r *Repository) PingDB(ctx context.Context) error {
 	connection, err := r.pool.Acquire(ctx)
 	if err != nil {
 		slog.Error("failed to acquire pool connection", "err", err)

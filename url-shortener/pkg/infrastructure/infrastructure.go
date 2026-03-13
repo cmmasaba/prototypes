@@ -2,32 +2,15 @@
 package infrastructure
 
 import (
-	"context"
-
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 )
 
-type Infrastructure interface {
-	PingDB(context.Context) bool
+type Infrastructure struct {
+	*repository.Repository
 }
 
-type InfraImpl struct {
-	r *repository.Repository
-}
-
-func New() (Infrastructure, error) {
-	r, err := repository.New()
-	if err != nil {
-		return nil, err
-	}
-
-	return &InfraImpl{
-		r: r,
+func New(database *repository.Repository) (*Infrastructure, error) {
+	return &Infrastructure{
+		database,
 	}, nil
-}
-
-func (i *InfraImpl) PingDB(ctx context.Context) bool {
-	err := i.r.Ping(ctx)
-
-	return err == nil
 }
