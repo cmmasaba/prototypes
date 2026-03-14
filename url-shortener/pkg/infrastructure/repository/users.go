@@ -50,7 +50,10 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 }
 
 // GetUserByOAuthID returns a *[domain.User] matching the OAuth provider and provider ID.
-func (r *Repository) GetUserByOAuthID(ctx context.Context, oauthProvider, oauthProviderID string) (*domain.User, error) {
+func (r *Repository) GetUserByOAuthID(
+	ctx context.Context,
+	oauthProvider, oauthProviderID string,
+) (*domain.User, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByOAuthID")
 	defer span.End()
 

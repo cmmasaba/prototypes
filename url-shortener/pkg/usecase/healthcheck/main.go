@@ -15,17 +15,17 @@ type usecase interface {
 	PingDB(context.Context) error
 }
 
-type UsecaseImpl struct {
+type UsecaseImplHealth struct {
 	infra usecase
 }
 
-func New(infrastructure usecase) *UsecaseImpl {
-	return &UsecaseImpl{
+func New(infrastructure usecase) *UsecaseImplHealth {
+	return &UsecaseImplHealth{
 		infra: infrastructure,
 	}
 }
 
-func (u *UsecaseImpl) CheckDBConnection(ctx context.Context) error {
+func (u *UsecaseImplHealth) CheckDBConnection(ctx context.Context) error {
 	ctx, span := telemetry.Trace(ctx, packageName, "CheckDBConnection")
 	defer span.End()
 

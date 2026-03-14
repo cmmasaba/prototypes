@@ -47,7 +47,11 @@ func (r *Repository) CreateClickData(ctx context.Context, data domain.Click) (*d
 }
 
 // GetClicksByLinkIDAndClickedAt returns a slice of *[domain.Click] matching the linkID and clickedAt time.
-func (r *Repository) GetClicksByLinkIDAndClickedAt(ctx context.Context, linkID int64, clickedAt time.Time) ([]*domain.Click, error) {
+func (r *Repository) GetClicksByLinkIDAndClickedAt(
+	ctx context.Context,
+	linkID int64,
+	clickedAt time.Time,
+) ([]*domain.Click, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetClicksByLinkIDAndClickedAt")
 	defer span.End()
 
@@ -81,7 +85,11 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(ctx context.Context, linkID i
 }
 
 // GetClicksByLinkIDAndCountry returns a slice of *[domain.Click] matching the linkID and country.
-func (r *Repository) GetClicksByLinkIDAndCountry(ctx context.Context, linkID int64, country *string) ([]*domain.Click, error) {
+func (r *Repository) GetClicksByLinkIDAndCountry(
+	ctx context.Context,
+	linkID int64,
+	country *string,
+) ([]*domain.Click, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetClicksByLinkIDAndCountry")
 	defer span.End()
 

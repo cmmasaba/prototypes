@@ -17,7 +17,6 @@ func TestNewRepository(t *testing.T) {
 	// type args struct {
 	// 	dbURL string
 	// }
-
 	tests := []struct {
 		name string
 		// args    args

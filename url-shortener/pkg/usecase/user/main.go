@@ -1,11 +1,10 @@
 // Package user provides usecases related to user management.
-package user
+package user // nolint: revive
 
 import (
 	"context"
 	"errors"
 	"log/slog"
-	"strings"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -33,18 +32,21 @@ type infrastructure interface {
 	GetUserByEmail(ctx context.Context, email string) (*domain.User, error)
 }
 
-type UsecaseImpl struct {
+type UsecaseImplUser struct {
 	infra infrastructure
 }
 
-func New(infrastructure infrastructure) *UsecaseImpl {
-	return &UsecaseImpl{
+func New(infrastructure infrastructure) *UsecaseImplUser {
+	return &UsecaseImplUser{
 		infra: infrastructure,
 	}
 }
 
-// CreateUser returns *[dto.UserOutput] after saving user to db
-func (u *UsecaseImpl) CreateUser(ctx context.Context, input dto.UserInput) (*dto.UserOutput, error) {
+// CreateUserEmailPassword returns *[dto.UserOutput] after saving user to db
+func (u *UsecaseImplUser) CreateUserEmailPassword(
+	ctx context.Context,
+	input dto.EmailPasswordUserInput,
+) (*dto.UserOutput, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateUser")
 	defer span.End()
 
@@ -66,14 +68,17 @@ func (u *UsecaseImpl) CreateUser(ctx context.Context, input dto.UserInput) (*dto
 		return nil, ErrUserWithEmailExists
 	}
 
-	data, err := mapDTOToDomain(&input)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcryptCount)
 	if err != nil {
-		slog.ErrorContext(ctx, "error mapping input data", "err", err)
-
 		return nil, err
 	}
 
-	user, err := u.infra.CreateUser(ctx, data)
+	hashString := string(hashedPassword)
+
+	user, err := u.infra.CreateUser(ctx, &domain.User{
+		Email:        input.Email,
+		PasswordHash: &hashString,
+	})
 	if err != nil {
 		slog.ErrorContext(ctx, "error creating user in db", "err", err)
 
@@ -84,42 +89,4 @@ func (u *UsecaseImpl) CreateUser(ctx context.Context, input dto.UserInput) (*dto
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}, nil
-}
-
-func mapDTOToDomain(data *dto.UserInput) (*domain.User, error) {
-	hasPassword := data.Password != ""
-	hasOAuth := data.OauthProvider != "" || data.OauthProviderID != ""
-
-	if hasPassword && hasOAuth {
-		return nil, ErrInvalidAuthMethod
-	}
-
-	if !hasPassword && !hasOAuth {
-		return nil, ErrNoAuthMethod
-	}
-
-	if hasOAuth && (data.OauthProvider == "" || data.OauthProviderID == "") {
-		return nil, ErrIncompleteOAuth
-	}
-
-	user := domain.User{
-		Email: strings.ToLower(strings.TrimSpace(data.Email)),
-	}
-
-	if hasOAuth {
-		user.OauthProvider = &data.OauthProvider
-		user.OauthProviderID = &data.OauthProviderID
-	}
-
-	if hasPassword {
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), bcryptCount)
-		if err != nil {
-			return nil, err
-		}
-
-		hashString := string(hashedPassword)
-		user.PasswordHash = &hashString
-	}
-
-	return &user, nil
 }

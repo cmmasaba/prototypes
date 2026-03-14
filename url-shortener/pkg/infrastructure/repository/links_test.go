@@ -54,6 +54,7 @@ func TestRepository_CreateShortLink(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("CreateShortLink() failed: %v", gotErr)
 				}
+
 				return
 			}
 
@@ -70,22 +71,22 @@ func TestRepository_CreateShortLink(t *testing.T) {
 
 func TestRepository_GetLinkByCode(t *testing.T) {
 	tests := []struct {
-		name       string
-		code       string
-		want       *domain.Link
-		wantErr    bool
+		name    string
+		code    string
+		want    *domain.Link
+		wantErr bool
 	}{
 		{
-			name:       "happy case: successfully get link by code",
-			code:       "",
-			want:       &domain.Link{},
-			wantErr:    false,
+			name:    "happy case: successfully get link by code",
+			code:    "",
+			want:    &domain.Link{},
+			wantErr: false,
 		},
 		{
-			name:       "sad case: error getting link by code",
-			code:       "",
-			want:       nil,
-			wantErr:    true,
+			name:    "sad case: error getting link by code",
+			code:    "",
+			want:    nil,
+			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -100,6 +101,7 @@ func TestRepository_GetLinkByCode(t *testing.T) {
 				if !tt.wantErr {
 					t.Errorf("GetLinkByCode() failed: %v", gotErr)
 				}
+
 				return
 			}
 

@@ -1,0 +1,73 @@
+version: "2"
+run:
+  timeout: 10m
+  concurrency: 8
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - asciicheck
+    - dogsled
+    - goheader
+    - unused
+    - gosec
+    - misspell
+    - rowserrcheck
+    - sqlclosecheck
+    - revive
+    - funlen
+    - unparam
+    - errorlint
+    - bodyclose
+    - gocritic
+    - nilerr
+    - ireturn
+    - importas
+    - wsl_v5
+    - copyloopvar
+    - nilerr
+    - makezero
+    - reassign
+  settings:
+    funlen:
+      lines: -1
+      statements: -1
+    gosec:
+      excludes:
+        - G601
+        - G304
+        - G101
+    staticcheck:
+      checks:
+        - all
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - pkg/presentation/graph/
+      - ./tests/
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - pkg/presentation/graph/
+      - ./tests/
+      - third_party$
+      - builtin$
+      - examples$
