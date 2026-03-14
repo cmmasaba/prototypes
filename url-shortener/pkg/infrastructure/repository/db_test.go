@@ -7,34 +7,20 @@ import (
 )
 
 func TestNewRepository(t *testing.T) {
-	// postgresURL, ok := os.LookupEnv("POSTGRES_URL")
-	// if !ok {
-	// 	t.Fatal("mandatory environment variable POSTGRES_URL not set")
-	// }
-
-	// invalidURL := "postgres://invalid:invalid@localhost:0/nonexistent?sslmode=disable"
-
-	// type args struct {
-	// 	dbURL string
-	// }
 	tests := []struct {
-		name string
-		// args    args
+		name    string
 		wantErr bool
 	}{
 		{
-			name: "happy case: successfully connect to database",
-			// args:    args{dbURL: postgresURL},
+			name:    "happy case: successfully connect to database",
 			wantErr: false,
 		},
 		{
-			name: "sad case: invalid connection string",
-			// args:    args{dbURL: invalidURL},
+			name:    "sad case: invalid connection string",
 			wantErr: true,
 		},
 		{
-			name: "sad case: empty connection string",
-			// args:    args{dbURL: ""},
+			name:    "sad case: empty connection string",
 			wantErr: true,
 		},
 	}

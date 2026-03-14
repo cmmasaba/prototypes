@@ -1,4 +1,4 @@
-app_name := url_shortener
+APP_NAME := url_shortener
 PKG_LIST := $(shell go list ./... | grep -v /vendor/)
 
 # Run upwards migration
@@ -26,3 +26,9 @@ format:
 	go fmt $(PKG_LIST)
 	gofumpt -w .
 	golines -w --max-len=120 .
+
+# Start docker container
+.PHONY: compose
+compose:
+	@echo "==> Starting containers..."
+	docker compose -f .vscode/compose.yml -p $(APP_NAME) up

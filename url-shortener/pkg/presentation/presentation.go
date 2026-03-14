@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
@@ -28,22 +27,6 @@ const (
 	backlogTimeout = time.Second * 60
 	requestTimeout = time.Second * 15
 )
-
-func isRunningInDebug() bool {
-	debug, ok := os.LookupEnv("DEBUG")
-	if !ok {
-		debug = "false"
-	}
-
-	status, err := strconv.ParseBool(debug)
-	if err != nil {
-		slog.Warn("error parsing debug flag, defaulting to false", "err", err)
-
-		return false
-	}
-
-	return status
-}
 
 // PrepareServer initializes infrastructure and usecases layers, then sets up the router.
 func PrepareServer() (http.Handler, error) {
@@ -72,8 +55,8 @@ func PrepareServer() (http.Handler, error) {
 }
 
 func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
-	debugStatus := isRunningInDebug()
-	logFormat := httplog.SchemaOTEL.Concise(debugStatus)
+	debug := os.Getenv("ENVIRONMENT") == "dev"
+	logFormat := httplog.SchemaOTEL.Concise(debug)
 	serviceName := "url-shortener"
 
 	multiHandler := telemetry.NewMultiHandler(
@@ -102,11 +85,10 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 		Skip: func(_ *http.Request, respStatus int) bool {
 			return respStatus == 404 || respStatus == 405
 		},
-		LogRequestBody:  func(_ *http.Request) bool { return debugStatus },
-		LogResponseBody: func(_ *http.Request) bool { return debugStatus },
+		LogRequestBody:  func(_ *http.Request) bool { return debug },
+		LogResponseBody: func(_ *http.Request) bool { return debug },
 	}))
 	r.Use(telemetry.MetricsMiddleware(serviceName))
-	r.Use(middleware.Heartbeat("/ping"))
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"*"},
@@ -129,18 +111,18 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 	r.Group(func(r chi.Router) {
 		r.Route("/api", func(r chi.Router) {
 			r.Route("/links", func(r chi.Router) {
-				r.Post("", func(_ http.ResponseWriter, _ *http.Request) {})
+				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{code}", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Delete("/{code}", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
 			r.Route("/clicks", func(r chi.Router) {
-				r.Post("", func(_ http.ResponseWriter, _ *http.Request) {})
-				r.Get("", func(_ http.ResponseWriter, _ *http.Request) {})
+				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
+				r.Get("/", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
 			r.Route("/users", func(r chi.Router) {
-				r.Post("", func(_ http.ResponseWriter, _ *http.Request) {})
+				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{slug}", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 		})

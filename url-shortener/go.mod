@@ -14,7 +14,6 @@ require (
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/jxskiss/base62 v1.1.0
 	github.com/stretchr/testify v1.11.1
-	go.opentelemetry.io/otel v1.42.0
 	golang.org/x/crypto v0.49.0
 )
 
@@ -41,6 +40,7 @@ require (
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/bridges/otelslog v0.17.0 // indirect
+	go.opentelemetry.io/otel v1.42.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp v0.18.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.42.0 // indirect
