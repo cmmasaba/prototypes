@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -78,6 +80,10 @@ func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Li
 
 	link, err := r.db.GetShortLinkByCode(ctx, code)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 

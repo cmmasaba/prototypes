@@ -150,12 +150,10 @@ func (u *UsecaseImplUser) CreateUserEmailPassword(
 		return nil, ErrUserWithEmailExists
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcryptCount)
+	hashString, err := hashPassword(ctx, input.Password)
 	if err != nil {
 		return nil, err
 	}
-
-	hashString := string(hashedPassword)
 
 	user, err := u.infra.CreateUser(ctx, &domain.User{
 		Email:        input.Email,
@@ -171,4 +169,16 @@ func (u *UsecaseImplUser) CreateUserEmailPassword(
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}, nil
+}
+
+func hashPassword(ctx context.Context, password string) (string, error) {
+	_, span := telemetry.Trace(ctx, packageName, "hashPassword")
+	defer span.End()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCount)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hashedPassword), nil
 }

@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
+	"github.com/jackc/pgx/v5"
 )
 
 // CreateUser returns a *[domain.User] created from the input data.
@@ -36,6 +38,10 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 
 	res, err := r.db.GetUserByEmail(ctx, email)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -62,6 +68,10 @@ func (r *Repository) GetUserByOAuthID(
 		OauthProviderID: stringToPgtypeText(&oauthProviderID),
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 

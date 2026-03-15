@@ -15,7 +15,7 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v3"
@@ -125,6 +125,10 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 			r.Route("/clicks", func(r chi.Router) {
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/", func(_ http.ResponseWriter, _ *http.Request) {})
+			})
+
+			r.Route("/auth", func(r chi.Router) {
+				r.Post("/register", handlers.CreateUserEmailPassword)
 			})
 
 			r.Route("/users", func(r chi.Router) {

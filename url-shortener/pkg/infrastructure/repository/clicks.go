@@ -2,11 +2,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -60,6 +62,10 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(
 		ClickedAt: pgtype.Timestamptz{Time: clickedAt, Valid: true},
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -98,6 +104,10 @@ func (r *Repository) GetClicksByLinkIDAndCountry(
 		Country: stringToPgtypeText(country),
 	})
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 

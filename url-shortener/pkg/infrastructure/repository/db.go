@@ -49,6 +49,7 @@ func New() (*Repository, error) {
 	dbConfig.MaxConnIdleTime = defaultMaxConnIdleTime
 	dbConfig.HealthCheckPeriod = defaultHealthCheckPeriod
 	dbConfig.ConnConfig.ConnectTimeout = defaultConnectTimeout
+	dbConfig.ConnConfig.RuntimeParams["search_path"] = os.Getenv("DATABASE_SCHEMA")
 
 	ctx := context.Background()
 
