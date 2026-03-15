@@ -572,7 +572,7 @@ func MetricsMiddleware(serviceName string) func(http.Handler) http.Handler {
 			rw := newResponseWriter(w)
 			start := time.Now()
 
-			next.ServeHTTP(rw, r)
+			next.ServeHTTP(rw, r.WithContext(ctx))
 
 			endAttrs := otelMetric.WithAttributes(
 				attribute.String("http.method", r.Method),
