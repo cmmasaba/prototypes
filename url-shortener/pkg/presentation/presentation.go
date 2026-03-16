@@ -10,6 +10,7 @@ import (
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
@@ -37,7 +38,12 @@ func PrepareServer() (http.Handler, error) {
 		return nil, err
 	}
 
-	infrastructure, err := infrastructure.New(database)
+	pwned, err := hibp.New()
+	if err != nil {
+		slog.Error("error initializing HIBP api")
+	}
+
+	infrastructure, err := infrastructure.New(database, pwned)
 	if err != nil {
 		slog.Error("error initializing infrastructure layer", "err", err)
 
@@ -124,6 +130,11 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 			r.Route("/users", func(r chi.Router) {
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{slug}", func(_ http.ResponseWriter, _ *http.Request) {})
+			})
+
+			r.Route("/auth", func(r chi.Router) {
+				r.Post("/", handlers.CreateUserEmailPassword)
+				r.Post("/validate-password", handlers.ValidatePassword)
 			})
 		})
 	})

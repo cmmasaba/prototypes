@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 
 	"github.com/cmmasaba/prototypes/telemetry"
@@ -19,8 +20,10 @@ const (
 var ErrInvalidRequestBody = errors.New("invalid request body")
 
 type usecases interface {
-	CheckDBConnection(ctx context.Context) error
+	CheckDBConnection(ctx context.Context) bool
 	CreateUserEmailPassword(ctx context.Context, input dto.EmailPasswordUserInput) (*dto.UserOutput, error)
+	ValidatePasswordStrength(ctx context.Context, input dto.ValidatePasswordInput) bool
+	CheckPasswordIsBreached(ctx context.Context, input dto.ValidatePasswordInput) bool
 }
 
 type Handlers struct {
@@ -33,24 +36,30 @@ func New(uc usecases) *Handlers {
 	}
 }
 
+func decodeBody(src io.Reader, dest any) error {
+	if err := json.NewDecoder(src).Decode(&dest); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // HealthCheck returns the status of backing infrastructure services.
 func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "HealthCheck")
 	defer span.End()
 
-	err := h.uc.CheckDBConnection(ctx)
-	if err != nil {
-		w.WriteHeader(http.StatusBadGateway)
+	// do checks for all infra services i.e cache, database, and other critical components.
+	ok := h.uc.CheckDBConnection(ctx)
 
-		if _, err := w.Write([]byte(`{"status": "down"}`)); err != nil {
-			telemetry.RecordError(span, err)
-		}
+	resp := map[string]bool{
+		"db": ok,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	if _, err := w.Write([]byte(`{"status": "up"}`)); err != nil {
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		telemetry.RecordError(span, err)
 	}
 }
@@ -61,7 +70,9 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 	defer span.End()
 
 	var input dto.EmailPasswordUserInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+
+	err := decodeBody(r.Body, input)
+	if err != nil {
 		telemetry.RecordError(span, err)
 		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
 
@@ -75,9 +86,7 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 		switch {
 		case errors.Is(err, user_uc.ErrUserWithEmailExists):
 			http.Error(w, err.Error(), http.StatusConflict)
-		case errors.Is(err, user_uc.ErrInvalidAuthMethod),
-			errors.Is(err, user_uc.ErrNoAuthMethod),
-			errors.Is(err, user_uc.ErrIncompleteOAuth):
+		case errors.Is(err, user_uc.ErrIncompleteOAuth):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -91,6 +100,62 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 
 	err = json.NewEncoder(w).Encode(user)
 	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// ValidatePassword checks if a password entropy is above the threshold.
+func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "ValidatePassword")
+	defer span.End()
+
+	var input dto.ValidatePasswordInput
+
+	err := decodeBody(r.Body, &input)
+	if err != nil {
+		telemetry.RecordError(span, err)
+		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	pwdStrength := h.uc.ValidatePasswordStrength(ctx, input)
+	resp := map[string]bool{
+		"passwordStrength": pwdStrength,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// CheckPasswordIsBreached checks is a passowrd was found in a breach.
+func (h *Handlers) CheckPasswordIsBreached(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "CheckPasswordIsBreached")
+	defer span.End()
+
+	var input dto.ValidatePasswordInput
+
+	err := decodeBody(r.Body, &input)
+	if err != nil {
+		telemetry.RecordError(span, err)
+		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	ok := h.uc.CheckPasswordIsBreached(ctx, input)
+	resp := map[string]bool{
+		"breached": ok,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		telemetry.RecordError(span, err)
 	}
 }

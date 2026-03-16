@@ -12,3 +12,7 @@ type UserOutput struct {
 	Email     string    `json:"email"`
 	CreatedAt time.Time `json:"createdAt"`
 }
+
+type ValidatePasswordInput struct {
+	Password string `json:"password" validate:"required"` // nolint: gosec
+}

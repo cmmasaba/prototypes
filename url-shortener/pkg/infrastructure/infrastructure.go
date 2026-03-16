@@ -3,14 +3,17 @@ package infrastructure
 
 import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
 )
 
 type Infrastructure struct {
 	*repository.Repository
+	*hibp.HIBP
 }
 
-func New(database *repository.Repository) (*Infrastructure, error) {
+func New(database *repository.Repository, hibp *hibp.HIBP) (*Infrastructure, error) {
 	return &Infrastructure{
 		database,
+		hibp,
 	}, nil
 }

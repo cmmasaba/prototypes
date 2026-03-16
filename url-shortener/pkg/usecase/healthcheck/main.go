@@ -25,9 +25,17 @@ func New(infrastructure usecase) *UsecaseImplHealth {
 	}
 }
 
-func (u *UsecaseImplHealth) CheckDBConnection(ctx context.Context) error {
+// CheckDBConnection returns true after pinging db connection.
+func (u *UsecaseImplHealth) CheckDBConnection(ctx context.Context) bool {
 	ctx, span := telemetry.Trace(ctx, packageName, "CheckDBConnection")
 	defer span.End()
 
-	return u.infra.PingDB(ctx)
+	err := u.infra.PingDB(ctx)
+	if err != nil {
+		telemetry.RecordError(span, err)
+
+		return false
+	}
+
+	return true
 }
