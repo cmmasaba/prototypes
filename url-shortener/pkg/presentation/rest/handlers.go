@@ -5,11 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
+	"log/slog"
 	"net/http"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	user_uc "github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
 )
 
@@ -21,9 +22,9 @@ var ErrInvalidRequestBody = errors.New("invalid request body")
 
 type usecases interface {
 	CheckDBConnection(ctx context.Context) bool
-	CreateUserEmailPassword(ctx context.Context, input dto.EmailPasswordUserInput) (*dto.UserOutput, error)
-	ValidatePasswordStrength(ctx context.Context, input dto.ValidatePasswordInput) bool
-	CheckPasswordIsBreached(ctx context.Context, input dto.ValidatePasswordInput) bool
+	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.UserOutput, error)
+	ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool
+	CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool
 }
 
 type Handlers struct {
@@ -36,12 +37,29 @@ func New(uc usecases) *Handlers {
 	}
 }
 
-func decodeBody(src io.Reader, dest any) error {
-	if err := json.NewDecoder(src).Decode(&dest); err != nil {
-		return err
+func decodeAndValidate[T any](ctx context.Context, r *http.Request, w http.ResponseWriter) (*T, bool) {
+	ctx, span := telemetry.Trace(ctx, packageName, "decodeAndValidate")
+	defer span.End()
+
+	var input T
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		slog.ErrorContext(ctx, "decode request body failed", "err", err)
+		telemetry.RecordError(span, err)
+		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
+
+		return nil, false
 	}
 
-	return nil
+	if err := helpers.Validate(input); err != nil {
+		slog.ErrorContext(ctx, "validate input failed", "err", err)
+		telemetry.RecordError(span, err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return nil, false
+	}
+
+	return &input, true
 }
 
 // HealthCheck returns the status of backing infrastructure services.
@@ -69,13 +87,8 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 	ctx, span := telemetry.Trace(r.Context(), packageName, "CreateUserEmailPassword")
 	defer span.End()
 
-	var input dto.EmailPasswordUserInput
-
-	err := decodeBody(r.Body, input)
-	if err != nil {
-		telemetry.RecordError(span, err)
-		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
-
+	input, ok := decodeAndValidate[dto.EmailPasswordUserInput](ctx, r, w)
+	if !ok {
 		return
 	}
 
@@ -109,13 +122,8 @@ func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "ValidatePassword")
 	defer span.End()
 
-	var input dto.ValidatePasswordInput
-
-	err := decodeBody(r.Body, &input)
-	if err != nil {
-		telemetry.RecordError(span, err)
-		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
-
+	input, ok := decodeAndValidate[dto.ValidatePasswordInput](ctx, r, w)
+	if !ok {
 		return
 	}
 
@@ -137,19 +145,14 @@ func (h *Handlers) CheckPasswordIsBreached(w http.ResponseWriter, r *http.Reques
 	ctx, span := telemetry.Trace(r.Context(), packageName, "CheckPasswordIsBreached")
 	defer span.End()
 
-	var input dto.ValidatePasswordInput
-
-	err := decodeBody(r.Body, &input)
-	if err != nil {
-		telemetry.RecordError(span, err)
-		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
-
+	input, ok := decodeAndValidate[dto.ValidatePasswordInput](ctx, r, w)
+	if !ok {
 		return
 	}
 
-	ok := h.uc.CheckPasswordIsBreached(ctx, input)
+	ok = h.uc.CheckPasswordIsBreached(ctx, input)
 	resp := map[string]bool{
-		"breached": ok,
+		"isBreached": ok,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

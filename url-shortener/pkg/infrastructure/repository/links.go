@@ -60,6 +60,8 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 		ExpiresAt:      timeToTimestampz(data.ExpiresAt),
 	})
 	if err != nil {
+		telemetry.RecordError(span, err)
+
 		return nil, err
 	}
 
@@ -83,6 +85,8 @@ func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Li
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+
+		telemetry.RecordError(span, err)
 
 		return nil, err
 	}

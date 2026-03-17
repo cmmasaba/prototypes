@@ -19,6 +19,8 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 		ExpiresAt: timeToTimestampz(&input.ExpireAt),
 	})
 	if err != nil {
+		telemetry.RecordError(span, err)
+
 		return err
 	}
 

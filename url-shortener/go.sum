@@ -4,8 +4,8 @@ github.com/cenkalti/backoff/v5 v5.0.3 h1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1x
 github.com/cenkalti/backoff/v5 v5.0.3/go.mod h1:rkhZdG3JZukswDf7f0cwqPNk4K0sa+F97BxZthm/crw=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
 github.com/cespare/xxhash/v2 v2.3.0/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
-github.com/cmmasaba/prototypes/telemetry v0.0.4 h1:Z6NFmXz3GXACmTiyJIIq4lCaVW7A9aosc9hPvDiPaxs=
-github.com/cmmasaba/prototypes/telemetry v0.0.4/go.mod h1:D0Yg7g7Lku+UXE43iT926Ykvy+04Fe1gJnH0ypN4G9k=
+github.com/cmmasaba/prototypes/telemetry v0.0.5 h1:XLXCEZbnPRTcYlMuFYRaUwpOLfXX716dIjw+0A2whyc=
+github.com/cmmasaba/prototypes/telemetry v0.0.5/go.mod h1:D0Yg7g7Lku+UXE43iT926Ykvy+04Fe1gJnH0ypN4G9k=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

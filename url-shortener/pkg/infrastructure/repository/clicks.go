@@ -30,6 +30,8 @@ func (r *Repository) CreateClickData(ctx context.Context, data domain.Click) (*d
 		City:       stringToPgtypeText(data.City),
 	})
 	if err != nil {
+		telemetry.RecordError(span, err)
+
 		return nil, err
 	}
 
@@ -65,6 +67,8 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+
+		telemetry.RecordError(span, err)
 
 		return nil, err
 	}
@@ -107,6 +111,8 @@ func (r *Repository) GetClicksByLinkIDAndCountry(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+
+		telemetry.RecordError(span, err)
 
 		return nil, err
 	}

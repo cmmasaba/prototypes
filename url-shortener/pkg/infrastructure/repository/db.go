@@ -3,11 +3,13 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
+	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,6 +23,11 @@ const (
 	defaultConnectTimeout    = time.Second * 5
 
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
+)
+
+var (
+	errAcquireDBConnFailed = errors.New("failed to acquire db connection")
+	errPingDBFailed        = errors.New("failed to ping db")
 )
 
 // Repository encapsulates db operations.
@@ -60,14 +67,14 @@ func New() (*Repository, error) {
 
 	connection, err := connPool.Acquire(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to acquire pool connection: %w", err)
+		return nil, errAcquireDBConnFailed
 	}
 
 	defer connection.Release()
 
 	err = connection.Ping(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to ping db: %w", err)
+		return nil, errPingDBFailed
 	}
 
 	r := &Repository{
@@ -80,20 +87,25 @@ func New() (*Repository, error) {
 
 // PingDB returns error if the database connection can't be pinged.
 func (r *Repository) PingDB(ctx context.Context) error {
+	ctx, span := telemetry.Trace(ctx, packageName, "PingDB")
+	defer span.End()
+
 	connection, err := r.pool.Acquire(ctx)
 	if err != nil {
-		slog.Error("failed to acquire pool connection", "err", err)
+		telemetry.RecordError(span, err)
+		slog.Error(errAcquireDBConnFailed.Error(), "err", err)
 
-		return fmt.Errorf("failed to acquire pool connection: %w", err)
+		return errAcquireDBConnFailed
 	}
 
 	defer connection.Release()
 
 	err = connection.Ping(ctx)
 	if err != nil {
-		slog.Error("failed to ping database", "err", err)
+		telemetry.RecordError(span, err)
+		slog.Error(errPingDBFailed.Error(), "err", err)
 
-		return fmt.Errorf("failed to ping db: %w", err)
+		return errPingDBFailed
 	}
 
 	return nil

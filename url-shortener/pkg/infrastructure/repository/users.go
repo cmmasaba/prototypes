@@ -22,6 +22,8 @@ func (r *Repository) CreateUser(ctx context.Context, input *domain.User) (*domai
 		OauthProviderID: stringToPgtypeText(input.OauthProviderID),
 	})
 	if err != nil {
+		telemetry.RecordError(span, err)
+
 		return nil, err
 	}
 
@@ -41,6 +43,8 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+
+		telemetry.RecordError(span, err)
 
 		return nil, err
 	}
@@ -71,6 +75,8 @@ func (r *Repository) GetUserByOAuthID(
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
+
+		telemetry.RecordError(span, err)
 
 		return nil, err
 	}

@@ -6,22 +6,20 @@ import (
 	"errors"
 	"log/slog"
 	"math"
+	"net/mail"
 	"unicode"
 	"unicode/utf8"
-
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
+	"golang.org/x/crypto/bcrypt"
 )
 
 const (
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
 
-	bcryptCount = 14
-
+	bcryptCount           = 14
 	minEntropy            = 60
 	lowercaseCharPoolSize = 26
 	uppercaseCharPoolSize = 26
@@ -32,6 +30,7 @@ const (
 var (
 	ErrUserWithEmailExists = errors.New("email already taken")
 	ErrIncompleteOAuth     = errors.New("both oauth_provider and oauth_provider_id are required")
+	ErrInvalidEmailSyntax  = errors.New("invalid email address")
 )
 
 type infrastructure interface {
@@ -93,8 +92,26 @@ func getBase(password string) int {
 	return base
 }
 
+// hashPassword returns hashed password string and nil if no error occurred.
+//
+// bcrypt is intentionally slow making this step critical section in the flow.
+func hashPassword(ctx context.Context, password string) (string, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "hashPassword")
+	defer span.End()
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCount)
+	if err != nil {
+		slog.ErrorContext(ctx, "bcrypt password hashing failed", "err", err)
+		telemetry.RecordError(span, err)
+
+		return "", err
+	}
+
+	return string(hashedPassword), nil
+}
+
 // ValidatePasswordStrength returns true if the password entropy is >= than minEntropy.
-func (u *UsecaseImplUser) ValidatePasswordStrength(ctx context.Context, input dto.ValidatePasswordInput) bool {
+func (u *UsecaseImplUser) ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool {
 	_, span := telemetry.Trace(ctx, packageName, "ValidatePasswordStrength")
 	defer span.End()
 
@@ -110,7 +127,7 @@ func (u *UsecaseImplUser) ValidatePasswordStrength(ctx context.Context, input dt
 }
 
 // CheckPasswordIsBreached returns true is a password was found in a breach.
-func (u *UsecaseImplUser) CheckPasswordIsBreached(ctx context.Context, input dto.ValidatePasswordInput) bool {
+func (u *UsecaseImplUser) CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool {
 	ctx, span := telemetry.Trace(ctx, packageName, "CheckPasswordIsBreached")
 	defer span.End()
 
@@ -127,16 +144,17 @@ func (u *UsecaseImplUser) CheckPasswordIsBreached(ctx context.Context, input dto
 // CreateUserEmailPassword returns *[dto.UserOutput] after saving user to db
 func (u *UsecaseImplUser) CreateUserEmailPassword(
 	ctx context.Context,
-	input dto.EmailPasswordUserInput,
+	input *dto.EmailPasswordUserInput,
 ) (*dto.UserOutput, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateUser")
 	defer span.End()
 
-	err := helpers.Validate(input)
-	if err != nil {
-		slog.ErrorContext(ctx, "input validation failed", "err", err)
+	e, err := mail.ParseAddress(input.Email)
+	if err != nil || e.Address != input.Email {
+		slog.Error("validation for email address failed", "err", err)
+		telemetry.RecordError(span, err)
 
-		return nil, err
+		return nil, ErrInvalidEmailSyntax
 	}
 
 	existingUser, err := u.infra.GetUserByEmail(ctx, input.Email)
@@ -169,16 +187,4 @@ func (u *UsecaseImplUser) CreateUserEmailPassword(
 		Email:     user.Email,
 		CreatedAt: user.CreatedAt,
 	}, nil
-}
-
-func hashPassword(ctx context.Context, password string) (string, error) {
-	_, span := telemetry.Trace(ctx, packageName, "hashPassword")
-	defer span.End()
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcryptCount)
-	if err != nil {
-		return "", err
-	}
-
-	return string(hashedPassword), nil
 }
