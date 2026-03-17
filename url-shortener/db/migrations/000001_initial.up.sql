@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS links (
 	active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
-CREATE INDEX id_links_expires_at ON links(expires_at) WHERE expires_at IS NOT NULL;
+CREATE INDEX idx_links_expires_at ON links(expires_at) WHERE expires_at IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS clicks (
 	id BIGSERIAL PRIMARY KEY,

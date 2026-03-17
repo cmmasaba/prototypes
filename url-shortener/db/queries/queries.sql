@@ -44,9 +44,9 @@ RETURNING *;
 
 -- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token_hash, expires_at
+	user_id, token_hash, expires_at, revoked
 ) VALUES (
-	$1, $2, $3
+	$1, $2, $3, $4
 );
 
 -- name: GetUserByEmail :one
@@ -58,3 +58,8 @@ WHERE
 SELECT * FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2;
+
+-- name: GetRefreshTokenByToken :one
+SELECT * FROM refresh_tokens
+WHERE
+	token_hash = $1;

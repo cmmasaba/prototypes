@@ -39,6 +39,7 @@ type RefreshToken struct {
 	ID        int64
 	UserID    int64
 	TokenHash string
+	Revoked   bool
 	ExpireAt  time.Time
 	CreatedAt *time.Time
 }

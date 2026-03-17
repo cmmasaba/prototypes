@@ -11,6 +11,7 @@ import (
 type Querier interface {
 	GetClicksByLinkIDAndClickedAt(ctx context.Context, arg GetClicksByLinkIDAndClickedAtParams) ([]Click, error)
 	GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicksByLinkIDAndCountryParams) ([]Click, error)
+	GetRefreshTokenByToken(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetShortLinkByCode(ctx context.Context, shortCode string) (Link, error)
 	GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)

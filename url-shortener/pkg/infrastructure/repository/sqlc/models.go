@@ -39,6 +39,7 @@ type RefreshToken struct {
 	TokenHash string
 	ExpiresAt pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
+	Revoked   pgtype.Bool
 }
 
 type User struct {

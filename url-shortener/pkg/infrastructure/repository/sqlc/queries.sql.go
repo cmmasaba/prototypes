@@ -99,6 +99,26 @@ func (q *Queries) GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicks
 	return items, nil
 }
 
+const getRefreshTokenByToken = `-- name: GetRefreshTokenByToken :one
+SELECT id, user_id, token_hash, expires_at, created_at, revoked FROM refresh_tokens
+WHERE
+	token_hash = $1
+`
+
+func (q *Queries) GetRefreshTokenByToken(ctx context.Context, tokenHash string) (RefreshToken, error) {
+	row := q.db.QueryRow(ctx, getRefreshTokenByToken, tokenHash)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.Revoked,
+	)
+	return i, err
+}
+
 const getShortLinkByCode = `-- name: GetShortLinkByCode :one
 SELECT id, short_code, original_url, ownership_token, created_at, expires_at, active FROM links
 WHERE
@@ -254,9 +274,9 @@ func (q *Queries) SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Cli
 
 const saveRefreshToken = `-- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token_hash, expires_at
+	user_id, token_hash, expires_at, revoked
 ) VALUES (
-	$1, $2, $3
+	$1, $2, $3, $4
 )
 `
 
@@ -264,10 +284,16 @@ type SaveRefreshTokenParams struct {
 	UserID    int64
 	TokenHash string
 	ExpiresAt pgtype.Timestamptz
+	Revoked   pgtype.Bool
 }
 
 func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error {
-	_, err := q.db.Exec(ctx, saveRefreshToken, arg.UserID, arg.TokenHash, arg.ExpiresAt)
+	_, err := q.db.Exec(ctx, saveRefreshToken,
+		arg.UserID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+		arg.Revoked,
+	)
 	return err
 }
 

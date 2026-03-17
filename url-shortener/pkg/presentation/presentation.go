@@ -129,6 +129,7 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 
 			r.Route("/auth", func(r chi.Router) {
 				r.Post("/register", handlers.CreateUserEmailPassword)
+				r.Post("/login", handlers.Login)
 			})
 
 			r.Route("/users", func(r chi.Router) {

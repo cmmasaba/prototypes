@@ -22,9 +22,10 @@ var ErrInvalidRequestBody = errors.New("invalid request body")
 
 type usecases interface {
 	CheckDBConnection(ctx context.Context) bool
-	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.UserOutput, error)
+	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.User, error)
 	ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool
 	CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool
+	Login(ctx context.Context, input *dto.LoginInput) (*dto.LoginResponse, error)
 }
 
 type Handlers struct {
@@ -37,6 +38,7 @@ func New(uc usecases) *Handlers {
 	}
 }
 
+// decodeAndValidate returns the decoded output and bool.
 func decodeAndValidate[T any](ctx context.Context, r *http.Request, w http.ResponseWriter) (*T, bool) {
 	ctx, span := telemetry.Trace(ctx, packageName, "decodeAndValidate")
 	defer span.End()
@@ -159,6 +161,35 @@ func (h *Handlers) CheckPasswordIsBreached(w http.ResponseWriter, r *http.Reques
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// Login authenticates the user by email/password.
+func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "Login")
+	defer span.End()
+
+	input, ok := decodeAndValidate[dto.LoginInput](ctx, r, w)
+	if !ok {
+		return
+	}
+
+	token, err := h.uc.Login(ctx, input)
+	if err != nil {
+		slog.Error("login failed", "err", err)
+		telemetry.RecordError(span, err)
+
+		http.Error(w, err.Error(), http.StatusBadRequest)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(token)
+	if err != nil {
 		telemetry.RecordError(span, err)
 	}
 }
