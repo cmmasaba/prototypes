@@ -18,7 +18,7 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 
 	err := r.db.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
 		UserID:    input.UserID,
-		TokenHash: input.TokenHash,
+		TokenHash: input.Token,
 		ExpiresAt: timeToTimestampz(&input.ExpireAt),
 		Revoked:   pgtype.Bool{Bool: input.Revoked, Valid: true},
 	})
@@ -50,9 +50,24 @@ func (r *Repository) GetRefreshTokenByTokenHash(ctx context.Context, token strin
 	return &domain.RefreshToken{
 		ID:        res.ID,
 		UserID:    res.UserID,
-		TokenHash: res.TokenHash,
+		Token:     res.TokenHash,
 		ExpireAt:  res.ExpiresAt.Time,
 		CreatedAt: &res.CreatedAt.Time,
 		Revoked:   res.Revoked.Bool,
 	}, nil
+}
+
+// RevokeRefreshToken returns nil after successfully revoking an refresh token.
+func (r *Repository) RevokeRefreshToken(ctx context.Context, token string) error {
+	ctx, span := telemetry.Trace(ctx, packageName, "RevokeRefreshToken")
+	defer span.End()
+
+	err := r.db.RevokeRefreshToken(ctx, token)
+	if err != nil {
+		telemetry.RecordError(span, err)
+
+		return err
+	}
+
+	return nil
 }

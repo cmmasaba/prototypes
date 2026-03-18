@@ -1,19 +1,19 @@
-// Package usecase ...
+// Package usecase encapsulates all usecase objects.
 package usecase
 
 import (
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
 )
 
 type Usecase struct {
 	*healthcheck.UsecaseImplHealth
-	*user.UsecaseImplUser
+	*auth.UsecaseImplUser
 }
 
-func New(health *healthcheck.UsecaseImplHealth, user *user.UsecaseImplUser) *Usecase {
+func New(health *healthcheck.UsecaseImplHealth, auth *auth.UsecaseImplUser) *Usecase {
 	return &Usecase{
 		health,
-		user,
+		auth,
 	}
 }

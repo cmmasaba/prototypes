@@ -1,6 +1,6 @@
 BEGIN;
 
-CREATE SCHEMA urlshortener;
+-- CREATE SCHEMA urlshortener;
 
 SET search_path TO urlshortener;
 

@@ -59,4 +59,6 @@ Delegate authentication to OAuth providers
 Use MFA to boost security i.e password, TOTP
 For JWT use ED25519 algorithm instead of HS256
 
+- Generating JWT secrets: [online](https://jwtsecretkeygenerator.com/)
+
 ## Telemetry

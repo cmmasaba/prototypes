@@ -49,4 +49,5 @@ type User struct {
 	OauthProvider   pgtype.Text
 	OauthProviderID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
+	PublicID        pgtype.UUID
 }

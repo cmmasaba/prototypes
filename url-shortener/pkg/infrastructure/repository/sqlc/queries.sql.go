@@ -175,7 +175,7 @@ func (q *Queries) GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at FROM users
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, public_id FROM users
 WHERE
 	email = $1
 `
@@ -190,12 +190,34 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
+		&i.PublicID,
+	)
+	return i, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, public_id FROM users
+WHERE
+	id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
+		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUserByOauthID = `-- name: GetUserByOauthID :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at FROM users
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, public_id FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2
 `
@@ -215,8 +237,43 @@ func (q *Queries) GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDPara
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
+		&i.PublicID,
 	)
 	return i, err
+}
+
+const getUserByPublicID = `-- name: GetUserByPublicID :one
+SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, public_id FROM users
+WHERE
+	public_id = $1
+`
+
+func (q *Queries) GetUserByPublicID(ctx context.Context, publicID pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByPublicID, publicID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.PasswordHash,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
+		&i.PublicID,
+	)
+	return i, err
+}
+
+const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET
+	revoked = FALSE
+WHERE
+	token_hash = $1
+`
+
+func (q *Queries) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
+	_, err := q.db.Exec(ctx, revokeRefreshToken, tokenHash)
+	return err
 }
 
 const saveNewClick = `-- name: SaveNewClick :one
@@ -339,7 +396,7 @@ INSERT INTO users (
 ) VALUES (
 	$1, $2, $3, $4
 )
-RETURNING id, email, password_hash, oauth_provider, oauth_provider_id, created_at
+RETURNING id, email, password_hash, oauth_provider, oauth_provider_id, created_at, public_id
 `
 
 type SaveUserParams struct {
@@ -364,6 +421,7 @@ func (q *Queries) SaveUser(ctx context.Context, arg SaveUserParams) (User, error
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
+		&i.PublicID,
 	)
 	return i, err
 }

@@ -9,9 +9,17 @@ type EmailPasswordUserInput struct {
 }
 
 type User struct {
+	PublicID  string    `json:"id"`
 	Email     string    `json:"email"`
 	Password  string    `json:"-"`
-	CreatedAt time.Time `json:"createdAt"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type AuthResponse struct {
+	User         User   `json:"user"`
+	AccessToken  string `json:"access_token"`  // nolint: gosec
+	RefreshToken string `json:"refresh_token"` // nolint: gosec
+	ExpiresIn    int64  `json:"expires_in"`
 }
 
 type ValidatePasswordInput struct {
@@ -24,9 +32,9 @@ type LoginInput struct {
 }
 
 type LoginResponse struct {
-	AccessToken  string `json:"accessToken"`  // nolint: gosec
-	RefreshToken string `json:"refreshToken"` // nolint: gosec
-	ExpiresAt    string `json:"expiresAt"`
+	AccessToken  string `json:"access_token"`  // nolint: gosec
+	RefreshToken string `json:"refresh_token"` // nolint: gosec
+	ExpiresIn    int64  `json:"expires_in"`
 }
 
 type RefreshToken struct {
@@ -36,4 +44,19 @@ type RefreshToken struct {
 	Token     string
 	CreatedAt time.Time
 	ExpiresAt time.Time
+}
+
+type RefreshAccessTokenInput struct {
+	Token string `json:"refresh_token" validate:"required"` // nolint: gosec
+}
+
+type RefreshAccessTokenResponse struct {
+	AccessToken string `json:"access_token"` // nolint: gosec
+	ExpiresIn   int64  `json:"expires_in"`
+}
+
+type SendMailInput struct {
+	Address string
+	Subject string
+	Body    string
 }

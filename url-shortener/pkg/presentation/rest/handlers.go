@@ -11,7 +11,7 @@ import (
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
-	user_uc "github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
 )
 
 const (
@@ -22,10 +22,11 @@ var ErrInvalidRequestBody = errors.New("invalid request body")
 
 type usecases interface {
 	CheckDBConnection(ctx context.Context) bool
-	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.User, error)
+	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.AuthResponse, error)
 	ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool
 	CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool
-	Login(ctx context.Context, input *dto.LoginInput) (*dto.LoginResponse, error)
+	Login(ctx context.Context, input *dto.LoginInput) (*dto.AuthResponse, error)
+	RefreshAccessToken(ctx context.Context, refreshToken string) (*dto.RefreshAccessTokenResponse, error)
 }
 
 type Handlers struct {
@@ -94,14 +95,14 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	user, err := h.uc.CreateUserEmailPassword(ctx, input)
+	resp, err := h.uc.CreateUserEmailPassword(ctx, input)
 	if err != nil {
-		telemetry.RecordError(span, err)
-
 		switch {
-		case errors.Is(err, user_uc.ErrUserWithEmailExists):
+		case errors.Is(err, auth.ErrUserWithEmailExists):
 			http.Error(w, err.Error(), http.StatusConflict)
-		case errors.Is(err, user_uc.ErrIncompleteOAuth):
+		case errors.Is(err, auth.ErrIncompleteOAuth):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, auth.ErrInvalidEmailSyntax):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -113,7 +114,7 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = json.NewEncoder(w).Encode(user)
+	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		telemetry.RecordError(span, err)
 	}
@@ -129,9 +130,9 @@ func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pwdStrength := h.uc.ValidatePasswordStrength(ctx, input)
+	ok = h.uc.ValidatePasswordStrength(ctx, input)
 	resp := map[string]bool{
-		"passwordStrength": pwdStrength,
+		"passwordStrength": ok,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -175,12 +176,13 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.uc.Login(ctx, input)
+	resp, err := h.uc.Login(ctx, input)
 	if err != nil {
-		slog.Error("login failed", "err", err)
-		telemetry.RecordError(span, err)
-
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, auth.ErrInvalidCredentials) {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 
 		return
 	}
@@ -188,7 +190,36 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(token)
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "RefreshAccessToken")
+	defer span.End()
+
+	input, ok := decodeAndValidate[dto.RefreshAccessTokenInput](ctx, r, w)
+	if !ok {
+		return
+	}
+
+	resp, err := h.uc.RefreshAccessToken(ctx, input.Token)
+	if err != nil {
+		if errors.Is(err, auth.ErrExpiredToken) || errors.Is(err, auth.ErrInvalidToken) {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
 		telemetry.RecordError(span, err)
 	}

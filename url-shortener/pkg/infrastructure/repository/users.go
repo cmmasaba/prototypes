@@ -28,6 +28,7 @@ func (r *Repository) CreateUser(ctx context.Context, input *domain.User) (*domai
 	}
 
 	input.ID = res.ID
+	input.PublicID = pgtypeUUIDToString(res.PublicID)
 	input.CreatedAt = res.CreatedAt.Time
 
 	return input, nil
@@ -51,6 +52,7 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 
 	return &domain.User{
 		ID:              res.ID,
+		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
 		PasswordHash:    pgtypeTextToString(res.PasswordHash),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),
@@ -83,6 +85,68 @@ func (r *Repository) GetUserByOAuthID(
 
 	return &domain.User{
 		ID:              res.ID,
+		PublicID:        pgtypeUUIDToString(res.PublicID),
+		Email:           res.Email,
+		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		OauthProvider:   pgtypeTextToString(res.OauthProvider),
+		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
+		CreatedAt:       res.CreatedAt.Time,
+	}, nil
+}
+
+// GetUserByID returns a *[domain.User] matching the id.
+func (r *Repository) GetUserByID(ctx context.Context, id int64) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByID")
+	defer span.End()
+
+	res, err := r.db.GetUserByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		telemetry.RecordError(span, err)
+
+		return nil, err
+	}
+
+	return &domain.User{
+		ID:              res.ID,
+		PublicID:        pgtypeUUIDToString(res.PublicID),
+		Email:           res.Email,
+		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		OauthProvider:   pgtypeTextToString(res.OauthProvider),
+		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
+		CreatedAt:       res.CreatedAt.Time,
+	}, nil
+}
+
+// GetUserByPublicID returns a *[domain.User] matching the public ID.
+func (r *Repository) GetUserByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByPublicID")
+	defer span.End()
+
+	pgUUID, err := stringToPgtypeUUID(publicID)
+	if err != nil {
+		telemetry.RecordError(span, err)
+
+		return nil, err
+	}
+
+	res, err := r.db.GetUserByPublicID(ctx, pgUUID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		telemetry.RecordError(span, err)
+
+		return nil, err
+	}
+
+	return &domain.User{
+		ID:              res.ID,
+		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
 		PasswordHash:    pgtypeTextToString(res.PasswordHash),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),

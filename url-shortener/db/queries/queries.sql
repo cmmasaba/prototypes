@@ -59,7 +59,24 @@ SELECT * FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2;
 
+-- name: GetUserByID :one
+SELECT * FROM users
+WHERE
+	id = $1;
+
 -- name: GetRefreshTokenByToken :one
 SELECT * FROM refresh_tokens
 WHERE
 	token_hash = $1;
+
+-- name: RevokeRefreshToken :exec
+UPDATE refresh_tokens
+SET
+	revoked = FALSE
+WHERE
+	token_hash = $1;
+
+-- name: GetUserByPublicID :one
+SELECT * FROM users
+WHERE
+	public_id = $1;

@@ -8,6 +8,7 @@ import (
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -46,6 +47,23 @@ func timestampzToTime(t pgtype.Timestamptz) *time.Time {
 	}
 
 	return time
+}
+
+func pgtypeUUIDToString(u pgtype.UUID) string {
+	if !u.Valid {
+		return ""
+	}
+
+	return uuid.UUID(u.Bytes).String()
+}
+
+func stringToPgtypeUUID(s string) (pgtype.UUID, error) {
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return pgtype.UUID{}, err
+	}
+
+	return pgtype.UUID{Bytes: id, Valid: true}, nil
 }
 
 // CreateShortLink returns a *[domain.Link] created from the input data.

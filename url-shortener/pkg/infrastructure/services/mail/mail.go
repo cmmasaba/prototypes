@@ -1,5 +1,5 @@
 // Package mail provides functionality for sending emails.
-package mail
+package mail // nolint: revive
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/cmmasaba/prototypes/telemetry"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	gomail "gopkg.in/mail.v2"
 )
 
@@ -75,16 +76,16 @@ func New() (*MailerImpl, error) {
 // Send returns true and nil after successfully sending an email.
 //
 // input should contain: sender addr, subject, body, attachments if any
-func (m *MailerImpl) Send(ctx context.Context, input any) (bool, error) {
+func (m *MailerImpl) Send(ctx context.Context, input dto.SendMailInput) (bool, error) {
 	_, span := telemetry.Trace(ctx, packageName, "Send")
 	defer span.End()
 
 	msg := gomail.NewMessage()
 
 	msg.SetHeader("From", m.sender)
-	msg.SetBody("text/html", input.(string))
-	msg.SetHeader("Subject", input.(string))
-	msg.SetHeader("To", input.(string))
+	msg.SetHeader("To", input.Address)
+	msg.SetHeader("Subject", input.Subject)
+	msg.SetBody("text/html", input.Body)
 
 	d := gomail.NewDialer(m.smtpClient, m.port, m.smtpUsername, m.smtpPassword)
 

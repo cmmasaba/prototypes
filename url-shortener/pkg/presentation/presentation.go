@@ -13,8 +13,8 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -51,16 +51,17 @@ func PrepareServer() (http.Handler, error) {
 	}
 
 	healthcheckUC := healthcheck.New(infrastructure)
-	userUC := user.New(infrastructure)
+	authUC := auth.New(infrastructure)
 
-	allUsecases := usecase.New(healthcheckUC, userUC)
-
-	r := setupRoutes(allUsecases)
+	r := setupRoutes(healthcheckUC, authUC)
 
 	return r, nil
 }
 
-func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
+func setupRoutes(
+	healthUC *healthcheck.UsecaseImplHealth,
+	userUC *auth.UsecaseImplUser,
+) *chi.Mux {
 	debug := os.Getenv("ENVIRONMENT") == "dev"
 	logFormat := httplog.SchemaOTEL.Concise(debug)
 	serviceName := "url-shortener"
@@ -78,6 +79,8 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 
 	logger := slog.New(multiHandler)
 	slog.SetDefault(logger)
+
+	usecases := usecase.New(healthUC, userUC)
 
 	handlers := rest.New(usecases)
 
@@ -106,40 +109,47 @@ func setupRoutes(usecases *usecase.Usecase) *chi.Mux {
 	r.Use(middleware.Timeout(requestTimeout))
 
 	// Public routes
-	r.Mount("/debug", middleware.Profiler())
 	r.Group(func(r chi.Router) {
 		r.Use(httprate.LimitByIP(100, time.Minute*1))
 
 		r.Get("/health", handlers.HealthCheck)
 	})
 
-	// Authenticated routes
 	r.Group(func(r chi.Router) {
 		r.Route("/api", func(r chi.Router) {
+			r.Route("/auth", func(r chi.Router) {
+				r.Post("/register", handlers.CreateUserEmailPassword)
+				r.Post("/login", handlers.Login)
+				r.Post("/validate-password", handlers.ValidatePassword)
+				r.Post("/refresh", handlers.RefreshAccessToken)
+			})
+
 			r.Route("/links", func(r chi.Router) {
+				r.Use(AuthMiddleware(userUC))
+
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{code}", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Delete("/{code}", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
 			r.Route("/clicks", func(r chi.Router) {
+				r.Use(AuthMiddleware(userUC))
+
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
-			r.Route("/auth", func(r chi.Router) {
-				r.Post("/register", handlers.CreateUserEmailPassword)
-				r.Post("/login", handlers.Login)
-			})
-
 			r.Route("/users", func(r chi.Router) {
+				r.Use(AuthMiddleware(userUC))
+
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{slug}", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
-			r.Route("/auth", func(r chi.Router) {
-				r.Post("/", handlers.CreateUserEmailPassword)
-				r.Post("/validate-password", handlers.ValidatePassword)
+			r.Route("/debug", func(r chi.Router) {
+				r.Use(AuthMiddleware(userUC))
+
+				r.Mount("/", middleware.Profiler())
 			})
 		})
 	})

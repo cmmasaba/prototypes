@@ -28,6 +28,7 @@ type Click struct {
 
 type User struct {
 	ID              int64
+	PublicID        string
 	Email           string
 	PasswordHash    *string
 	OauthProvider   *string
@@ -38,7 +39,7 @@ type User struct {
 type RefreshToken struct {
 	ID        int64
 	UserID    int64
-	TokenHash string
+	Token     string
 	Revoked   bool
 	ExpireAt  time.Time
 	CreatedAt *time.Time

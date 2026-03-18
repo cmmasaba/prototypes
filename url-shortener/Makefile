@@ -4,8 +4,8 @@ PKG_LIST := $(shell go list ./... | grep -v /vendor/)
 # Run upwards migration
 .PHONY: migrate_up
 migrate_up:
-	@echo "==> Running latest upward migrations..."
-	migrate -database $(POSTGRES_URL) -path db/migrations up 1
+	@echo "==> Running upward migrations..."
+	migrate -database $(POSTGRES_URL) -path db/migrations up
 
 # Run backwards migration
 .PHONY: migrate down
