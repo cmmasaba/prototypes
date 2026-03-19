@@ -2,15 +2,17 @@
 package mail // nolint: revive
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
+	"text/template"
+	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	gomail "gopkg.in/mail.v2"
 )
 
@@ -22,6 +24,7 @@ var (
 	errSMTPUsernameNotSet = errors.New("smtp username not set")
 	errSMTPPasswordNotSet = errors.New("smtp password not set")
 	errSMTPPortNotSet     = errors.New("smtp port not set")
+	serviceURL            = os.Getenv("SERVICE_BASE_URL")
 )
 
 type Mailer interface {
@@ -31,6 +34,11 @@ type Mailer interface {
 type MailerImpl struct {
 	smtpClient, sender, smtpUsername, smtpPassword string
 	port                                           int
+}
+
+type emailVerification struct {
+	ServiceURL, OTP string
+	Year            int
 }
 
 func New() (*MailerImpl, error) {
@@ -73,23 +81,37 @@ func New() (*MailerImpl, error) {
 	}, nil
 }
 
-// Send returns true and nil after successfully sending an email.
-//
-// input should contain: sender addr, subject, body, attachments if any
-func (m *MailerImpl) Send(ctx context.Context, input dto.SendMailInput) (bool, error) {
-	_, span := telemetry.Trace(ctx, packageName, "Send")
+// SendEmailVerification returns true and nil after successfully sending an email.
+func (m *MailerImpl) SendEmailVerification(ctx context.Context, recipient, otp string) (bool, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "Send")
 	defer span.End()
+
+	email := emailVerification{
+		ServiceURL: serviceURL,
+		OTP:        otp,
+		Year:       time.Now().Year(),
+	}
+
+	var b bytes.Buffer
+
+	t := template.Must(template.New("emailVerification").Parse(emailVerificationTemplate()))
+
+	err := t.Execute(&b, email)
+	if err != nil {
+		slog.ErrorContext(ctx, "template execution failed", "err", err)
+		telemetry.RecordError(span, err)
+	}
 
 	msg := gomail.NewMessage()
 
-	msg.SetHeader("From", m.sender)
-	msg.SetHeader("To", input.Address)
-	msg.SetHeader("Subject", input.Subject)
-	msg.SetBody("text/html", input.Body)
+	msg.SetAddressHeader("From", m.sender, "URL Shortener")
+	msg.SetHeader("To", recipient)
+	msg.SetHeader("Subject", "Verify Your Email")
+	msg.SetBody("text/html", b.String())
 
 	d := gomail.NewDialer(m.smtpClient, m.port, m.smtpUsername, m.smtpPassword)
 
-	err := d.DialAndSend(msg)
+	err = d.DialAndSend(msg)
 	if err != nil {
 		slog.ErrorContext(ctx, "send email failed", "err", err)
 		telemetry.RecordError(span, err)

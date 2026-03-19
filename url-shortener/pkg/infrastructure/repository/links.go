@@ -31,7 +31,7 @@ func pgtypeTextToString(s pgtype.Text) *string {
 	return str
 }
 
-func timeToTimestampz(t *time.Time) pgtype.Timestamptz {
+func timeToTimestamptz(t *time.Time) pgtype.Timestamptz {
 	if t != nil {
 		return pgtype.Timestamptz{Time: *t, Valid: true}
 	}
@@ -39,7 +39,7 @@ func timeToTimestampz(t *time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{}
 }
 
-func timestampzToTime(t pgtype.Timestamptz) *time.Time {
+func timestamptzToTime(t pgtype.Timestamptz) *time.Time {
 	var time *time.Time
 
 	if t.Valid {
@@ -75,7 +75,7 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 		ShortCode:      data.ShortCode,
 		OriginalUrl:    data.OriginalURL,
 		OwnershipToken: data.OwnershipToken,
-		ExpiresAt:      timeToTimestampz(data.ExpiresAt),
+		ExpiresAt:      timeToTimestamptz(data.ExpiresAt),
 	})
 	if err != nil {
 		telemetry.RecordError(span, err)
@@ -89,7 +89,7 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 		OriginalURL:    row.OriginalUrl,
 		OwnershipToken: row.OwnershipToken,
 		CreatedAt:      row.CreatedAt.Time,
-		ExpiresAt:      timestampzToTime(row.ExpiresAt),
+		ExpiresAt:      timestamptzToTime(row.ExpiresAt),
 	}, nil
 }
 
@@ -115,6 +115,6 @@ func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Li
 		OriginalURL:    link.OriginalUrl,
 		OwnershipToken: link.OwnershipToken,
 		CreatedAt:      link.CreatedAt.Time,
-		ExpiresAt:      timestampzToTime(link.ExpiresAt),
+		ExpiresAt:      timestamptzToTime(link.ExpiresAt),
 	}, nil
 }

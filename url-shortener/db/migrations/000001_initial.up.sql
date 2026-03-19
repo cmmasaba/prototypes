@@ -1,11 +1,24 @@
 BEGIN;
 
--- CREATE SCHEMA urlshortener;
+CREATE SCHEMA urlshortener;
 
 SET search_path TO urlshortener;
 
+CREATE TABLE IF NOT EXISTS users (
+	id BIGSERIAL PRIMARY KEY,
+	email VARCHAR(255) UNIQUE NOT NULL,
+	password_hash VARCHAR(255) NULL,
+	oauth_provider VARCHAR(20) NULL,
+	oauth_provider_id VARCHAR(255) NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	deleted_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_provider_id) WHERE oauth_provider_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS links (
 	id BIGSERIAL PRIMARY KEY,
+	user_id BIGINT NOT NULL REFERENCES users(id),
 	short_code VARCHAR(50) UNIQUE NOT NULL,
 	original_url TEXT NOT NULL,
 	ownership_token VARCHAR(64) NOT NULL,
@@ -34,17 +47,6 @@ CREATE TABLE IF NOT EXISTS clicks (
 CREATE INDEX idx_clicks_link_id_clicked_at ON clicks(link_id, clicked_at);
 CREATE INDEX idx_clicks_link_id_country ON clicks(link_id, country);
 CREATE INDEX idx_clicks_country ON clicks USING HASH(country);
-
-CREATE TABLE IF NOT EXISTS users (
-	id BIGSERIAL PRIMARY KEY,
-	email VARCHAR(255) UNIQUE NOT NULL,
-	password_hash VARCHAR(255) NULL,
-	oauth_provider VARCHAR(20) NULL,
-	oauth_provider_id VARCHAR(255) NULL,
-	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE UNIQUE INDEX idx_users_oauth ON users(oauth_provider, oauth_provider_id) WHERE oauth_provider_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
 	id BIGSERIAL PRIMARY KEY,

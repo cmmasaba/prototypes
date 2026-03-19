@@ -11,6 +11,8 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/mail"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/otp"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
@@ -40,10 +42,17 @@ func PrepareServer() (http.Handler, error) {
 
 	pwned, err := hibp.New()
 	if err != nil {
-		slog.Error("error initializing HIBP api")
+		slog.Error("error initializing HIBP api", "err", err)
 	}
 
-	infrastructure, err := infrastructure.New(database, pwned)
+	mailClient, err := mail.New()
+	if err != nil {
+		slog.Error("error initializing mail client", "err", err)
+	}
+
+	otp := otp.New(database)
+
+	infrastructure, err := infrastructure.New(database, pwned, mailClient, otp)
 	if err != nil {
 		slog.Error("error initializing infrastructure layer", "err", err)
 
@@ -122,6 +131,11 @@ func setupRoutes(
 				r.Post("/login", handlers.Login)
 				r.Post("/validate-password", handlers.ValidatePassword)
 				r.Post("/refresh", handlers.RefreshAccessToken)
+
+				r.Route("/verify-otp", func(r chi.Router) {
+					r.Use(AuthMiddleware(userUC))
+					r.Post("/", handlers.VerifyOTP)
+				})
 			})
 
 			r.Route("/links", func(r chi.Router) {

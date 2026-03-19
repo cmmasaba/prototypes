@@ -24,9 +24,9 @@ type usecases interface {
 	CheckDBConnection(ctx context.Context) bool
 	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.AuthResponse, error)
 	ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool
-	CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool
 	Login(ctx context.Context, input *dto.LoginInput) (*dto.AuthResponse, error)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (*dto.RefreshAccessTokenResponse, error)
+	VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (bool, error)
 }
 
 type Handlers struct {
@@ -104,6 +104,8 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, auth.ErrInvalidEmailSyntax):
 			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, auth.ErrPasswordBreached):
+			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
 			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
@@ -133,29 +135,6 @@ func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
 	ok = h.uc.ValidatePasswordStrength(ctx, input)
 	resp := map[string]bool{
 		"passwordStrength": ok,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		telemetry.RecordError(span, err)
-	}
-}
-
-// CheckPasswordIsBreached checks is a passowrd was found in a breach.
-func (h *Handlers) CheckPasswordIsBreached(w http.ResponseWriter, r *http.Request) {
-	ctx, span := telemetry.Trace(r.Context(), packageName, "CheckPasswordIsBreached")
-	defer span.End()
-
-	input, ok := decodeAndValidate[dto.ValidatePasswordInput](ctx, r, w)
-	if !ok {
-		return
-	}
-
-	ok = h.uc.CheckPasswordIsBreached(ctx, input)
-	resp := map[string]bool{
-		"isBreached": ok,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -196,6 +175,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RefreshAccessToken refreshes access tokens.
 func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "RefreshAccessToken")
 	defer span.End()
@@ -214,6 +194,40 @@ func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// VerifyOTP does OTP verification.
+func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "VerifyOTP")
+	defer span.End()
+
+	input, ok := decodeAndValidate[dto.VerifyOTPInput](ctx, r, w)
+	if !ok {
+		return
+	}
+
+	ok, err := h.uc.VerifyOTP(ctx, input)
+	if err != nil {
+		if errors.Is(err, auth.ErrExpiredOTPCode) || errors.Is(err, auth.ErrIncorrectOTP) || errors.Is(err, auth.ErrInvalidOTPCode) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	resp := map[string]bool{
+		"verified": ok,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

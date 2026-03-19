@@ -25,12 +25,23 @@ type Click struct {
 
 type Link struct {
 	ID             int64
+	UserID         int64
 	ShortCode      string
 	OriginalUrl    string
 	OwnershipToken string
 	CreatedAt      pgtype.Timestamptz
 	ExpiresAt      pgtype.Timestamptz
 	Active         bool
+}
+
+type Otp struct {
+	ID        int64
+	UserID    int64
+	Code      string
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	Purpose   string
+	Valid     bool
 }
 
 type RefreshToken struct {
@@ -49,5 +60,6 @@ type User struct {
 	OauthProvider   pgtype.Text
 	OauthProviderID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
+	DeletedAt       pgtype.Timestamptz
 	PublicID        pgtype.UUID
 }

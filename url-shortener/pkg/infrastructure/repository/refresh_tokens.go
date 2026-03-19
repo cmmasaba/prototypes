@@ -19,7 +19,7 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 	err := r.db.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
 		UserID:    input.UserID,
 		TokenHash: input.Token,
-		ExpiresAt: timeToTimestampz(&input.ExpireAt),
+		ExpiresAt: timeToTimestamptz(&input.ExpireAt),
 		Revoked:   pgtype.Bool{Bool: input.Revoked, Valid: true},
 	})
 	if err != nil {

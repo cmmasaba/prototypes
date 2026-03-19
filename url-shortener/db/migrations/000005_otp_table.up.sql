@@ -1,0 +1,17 @@
+BEGIN;
+
+SET search_path TO urlshortener;
+
+CREATE TABLE IF NOT EXISTS otp (
+	id BIGSERIAL PRIMARY KEY,
+	user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	code CHAR(6) UNIQUE NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+	expires_at TIMESTAMPTZ NOT NULL,
+	purpose VARCHAR(25) NOT NULL CHECK ( purpose IN ('LOGIN', 'EMAIL_VERIFICATION', 'PASSWORD_RESET')),
+	valid BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX idx_otp_user_code_purpose ON otp(code, user_id, purpose);
+
+COMMIT;

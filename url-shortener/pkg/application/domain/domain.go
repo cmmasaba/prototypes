@@ -1,7 +1,11 @@
 // Package domain represents domain specific entities
 package domain
 
-import "time"
+import (
+	"time"
+
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
+)
 
 type Link struct {
 	ID             int64
@@ -43,4 +47,12 @@ type RefreshToken struct {
 	Revoked   bool
 	ExpireAt  time.Time
 	CreatedAt *time.Time
+}
+
+type OTP struct {
+	User      int64
+	Code      string
+	ExpiresAt time.Time
+	Valid     bool
+	Purpose   dto.OTPPurpose
 }

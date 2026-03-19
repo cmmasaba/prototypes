@@ -80,3 +80,19 @@ WHERE
 SELECT * FROM users
 WHERE
 	public_id = $1;
+
+-- name: CreateOTP :exec
+INSERT INTO otp (
+	user_id, code, expires_at, purpose, valid
+) VALUES (
+	$1, $2, $3, $4, $5
+);
+
+-- name: GetOTPByCodeAndUserID :one
+SELECT code, user_id, valid, expires_at FROM otp
+WHERE
+	code=$1 AND user_id=$2 AND purpose=$3
+LIMIT 1;
+
+-- name: RevokeOTP :exec
+UPDATE otp SET valid = FALSE WHERE code = $1;

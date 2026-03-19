@@ -1,17 +1,35 @@
 APP_NAME := url_shortener
 PKG_LIST := $(shell go list ./... | grep -v /vendor/)
 
-# Run upwards migration
+# Run latest upwards migration
 .PHONY: migrate_up
 migrate_up:
 	@echo "==> Running upward migrations..."
+	migrate -database $(POSTGRES_URL) -path db/migrations up 1
+
+# Run all upwards migration
+.PHONY: migrate_up_all
+migrate_up_all:
+	@echo "==> Running upward migrations..."
 	migrate -database $(POSTGRES_URL) -path db/migrations up
 
-# Run backwards migration
-.PHONY: migrate down
+# Run latest backwards migration
+.PHONY: migrate_down
 migrate_down:
 	@echo "==> Running latest downward migrations..."
 	migrate -database $(POSTGRES_URL) -path db/migrations down 1
+
+# Run all backwards migration
+.PHONY: migrate_down_all
+migrate_down_all:
+	@echo "==> Running latest downward migrations..."
+	migrate -database $(POSTGRES_URL) -path db/migrations down
+
+# Drop latest dirty migration state
+.PHONY: drop_dirty_migration
+drop_dirty_migration:
+	@echo "==> Running upward migrations..."
+	migrate -database $(POSTGRES_URL) -path db/migrations force $(LAST_MIGRATION_STATE)
 
 # Generate sqlc code
 .PHONY: generate_sql

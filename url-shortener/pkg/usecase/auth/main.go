@@ -16,6 +16,7 @@ import (
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -43,6 +44,10 @@ var (
 	errInternalError       = errors.New("internal server error")
 	ErrInvalidToken        = errors.New("invalid token")
 	ErrExpiredToken        = errors.New("token expired")
+	ErrInvalidOTPCode      = errors.New("invalid otp code, request a new code")
+	ErrExpiredOTPCode      = errors.New("expired otp code, request a new code")
+	ErrIncorrectOTP        = errors.New("incorrect otp, try again")
+	ErrPasswordBreached    = errors.New("oops the input password was found in a breach, try another password")
 )
 
 type infrastructure interface {
@@ -52,6 +57,11 @@ type infrastructure interface {
 	GetRefreshTokenByTokenHash(ctx context.Context, token string) (*domain.RefreshToken, error)
 	SaveRefreshToken(ctx context.Context, input domain.RefreshToken) error
 	GetUserByID(ctx context.Context, id int64) (*domain.User, error)
+	SendEmailVerification(ctx context.Context, recipient, otp string) (bool, error)
+	GenerateOTP(ctx context.Context, userID int64, purpose dto.OTPPurpose) (string, error)
+	GetOTPByCodeAndUserID(ctx context.Context, code string, userID int64, purpose dto.OTPPurpose) (*domain.OTP, error)
+	MarkOTPAsUsed(ctx context.Context, code string) error
+	GetUserByPublicID(ctx context.Context, publicID string) (*domain.User, error)
 }
 
 type UsecaseImplUser struct {
@@ -91,6 +101,10 @@ func (u *UsecaseImplUser) CreateUserEmailPassword(
 		return nil, ErrUserWithEmailExists
 	}
 
+	if u.checkPasswordIsBreached(ctx, input.Password) {
+		return nil, ErrPasswordBreached
+	}
+
 	hashString, err := hashPassword(ctx, input.Password)
 	if err != nil {
 		return nil, err
@@ -110,6 +124,13 @@ func (u *UsecaseImplUser) CreateUserEmailPassword(
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Minute))
+		defer cancelFunc()
+
+		u.sendOTPMail(ctx, user.ID, user.Email, dto.EmailVerification)
+	}()
 
 	return &dto.AuthResponse{
 		User: dto.User{
@@ -206,12 +227,12 @@ func (u *UsecaseImplUser) ValidatePasswordStrength(ctx context.Context, input *d
 	return entropy >= minEntropy
 }
 
-// CheckPasswordIsBreached returns true is a password was found in a breach.
-func (u *UsecaseImplUser) CheckPasswordIsBreached(ctx context.Context, input *dto.ValidatePasswordInput) bool {
-	ctx, span := telemetry.Trace(ctx, packageName, "CheckPasswordIsBreached")
+// checkPasswordIsBreached returns true is a password was found in a breach.
+func (u *UsecaseImplUser) checkPasswordIsBreached(ctx context.Context, password string) bool {
+	ctx, span := telemetry.Trace(ctx, packageName, "checkPasswordIsBreached")
 	defer span.End()
 
-	isBreached, err := u.infra.CheckPasswordIsBreached(ctx, input.Password)
+	isBreached, err := u.infra.CheckPasswordIsBreached(ctx, password)
 	if err != nil {
 		telemetry.RecordError(span, err)
 
@@ -282,7 +303,7 @@ func (u *UsecaseImplUser) ValidateJWTToken(ctx context.Context, tokenString stri
 			return nil, ErrInvalidToken
 		}
 
-		return accessKey, nil
+		return []byte(accessKey), nil
 	})
 	if err != nil {
 		if errors.Is(err, ErrExpiredToken) {
@@ -338,7 +359,7 @@ func (u *UsecaseImplUser) Login(ctx context.Context, input *dto.LoginInput) (*dt
 	defer span.End()
 
 	user, err := u.infra.GetUserByEmail(ctx, input.Email)
-	if err != nil {
+	if err != nil || user == nil {
 		slog.ErrorContext(ctx, "get user by email failed", "err", err)
 
 		return nil, ErrInvalidCredentials
@@ -356,6 +377,13 @@ func (u *UsecaseImplUser) Login(ctx context.Context, input *dto.LoginInput) (*dt
 	if err != nil {
 		return nil, err
 	}
+
+	go func() {
+		ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Minute))
+		defer cancelFunc()
+
+		u.sendOTPMail(ctx, user.ID, user.Email, dto.Login)
+	}()
 
 	return &dto.AuthResponse{
 		User: dto.User{
@@ -403,4 +431,78 @@ func (u *UsecaseImplUser) RefreshAccessToken(ctx context.Context, refreshToken s
 		AccessToken: accessToken,
 		ExpiresIn:   int64(accessTokenTTL / time.Second),
 	}, nil
+}
+
+// sendOTPMail is a utility for sending OTP emails. It returns true on success.
+func (u *UsecaseImplUser) sendOTPMail(ctx context.Context, userID int64, recipient string, purpose dto.OTPPurpose) {
+	ctx, span := telemetry.Trace(ctx, packageName, "sendMail")
+	defer span.End()
+
+	if !purpose.IsValid() {
+		slog.ErrorContext(ctx, "invalid type for enum OTPPurpose", "value", purpose.String())
+
+		return
+	}
+
+	otp, err := u.infra.GenerateOTP(ctx, userID, purpose)
+	if err != nil {
+		return
+	}
+
+	_, _ = u.infra.SendEmailVerification(ctx, recipient, otp)
+}
+
+// VerifyOTP returns true and nil on success.
+func (u *UsecaseImplUser) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (bool, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "VerifyOTP")
+	defer span.End()
+
+	userID, ok := helpers.GetUserIDCtx(ctx)
+	if !ok {
+		slog.ErrorContext(ctx, "get userID from context failed")
+
+		return false, errInternalError
+	}
+
+	user, err := u.infra.GetUserByPublicID(ctx, userID)
+	if err != nil {
+		slog.ErrorContext(ctx, "get user by public ID failed", "err", err)
+		telemetry.RecordError(span, err)
+
+		return false, errInternalError
+	}
+
+	otp, err := u.infra.GetOTPByCodeAndUserID(ctx, input.Value, user.ID, input.Purpose)
+	if err != nil {
+		return false, errInternalError
+	}
+
+	if otp == nil {
+		return false, ErrInvalidOTPCode
+	}
+
+	if !otp.Valid {
+		return false, ErrInvalidOTPCode
+	}
+
+	// Replace this with a trigger than updates the Valid column.
+	if time.Now().After(otp.ExpiresAt) {
+		return false, ErrExpiredOTPCode
+	}
+
+	if otp.Code != input.Value {
+		return false, ErrIncorrectOTP
+	}
+
+	go func() {
+		ctx, cancelFunc := context.WithDeadline(context.Background(), time.Now().Add(1*time.Minute))
+		defer cancelFunc()
+
+		err = u.infra.MarkOTPAsUsed(ctx, otp.Code)
+		if err != nil {
+			slog.ErrorContext(ctx, "revoke otp failed", "err", err)
+		}
+	}()
+
+	return true, nil
 }

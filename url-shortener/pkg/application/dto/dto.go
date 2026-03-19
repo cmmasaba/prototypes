@@ -55,8 +55,7 @@ type RefreshAccessTokenResponse struct {
 	ExpiresIn   int64  `json:"expires_in"`
 }
 
-type SendMailInput struct {
-	Address string
-	Subject string
-	Body    string
+type VerifyOTPInput struct {
+	Purpose OTPPurpose `json:"purpose" validate:"required"`
+	Value   string `json:"value" validate:"required"`
 }
