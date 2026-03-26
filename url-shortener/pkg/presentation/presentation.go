@@ -5,14 +5,14 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/alexedwards/scs/goredisstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/cmmasaba/prototypes/telemetry"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/mail"
-	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/otp"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
@@ -22,45 +22,32 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v3"
 	"github.com/go-chi/httprate"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
-	throttleLimit  = 100
-	backlogLimit   = 100
-	backlogTimeout = time.Second * 60
 	requestTimeout = time.Second * 15
 )
 
 // PrepareServer initializes infrastructure and usecases layers, then sets up the router.
 func PrepareServer() (http.Handler, error) {
-	database, err := repository.New()
-	if err != nil {
-		slog.Error("error initializing db", "err", err)
-
-		return nil, err
-	}
-
-	pwned, err := hibp.New()
-	if err != nil {
-		slog.Error("error initializing HIBP api", "err", err)
-	}
-
-	mailClient, err := mail.New()
-	if err != nil {
-		slog.Error("error initializing mail client", "err", err)
-	}
-
-	otp := otp.New(database)
-
-	infrastructure, err := infrastructure.New(database, pwned, mailClient, otp)
+	infrastructure, err := infrastructure.New()
 	if err != nil {
 		slog.Error("error initializing infrastructure layer", "err", err)
 
 		return nil, err
 	}
 
-	healthcheckUC := healthcheck.New(infrastructure)
-	authUC := auth.New(infrastructure)
+	healthcheckUC := healthcheck.New(
+		infrastructure.DB,
+		infrastructure.TasksQueue,
+	)
+	authUC := auth.New(
+		infrastructure.DB,
+		infrastructure.Hibp,
+		infrastructure.Otp,
+		infrastructure.TasksQueue,
+	)
 
 	r := setupRoutes(healthcheckUC, authUC)
 
@@ -68,12 +55,37 @@ func PrepareServer() (http.Handler, error) {
 }
 
 func setupRoutes(
-	healthUC *healthcheck.UsecaseImplHealth,
-	userUC *auth.UsecaseImplUser,
+	healthUC *healthcheck.UsecaseImpl,
+	userUC *auth.UsecaseImpl,
 ) *chi.Mux {
-	debug := os.Getenv("ENVIRONMENT") == "dev"
+	debug := helpers.MustGetEnvVar("ENVIRONMENT") == "dev"
+
 	logFormat := httplog.SchemaOTEL.Concise(debug)
+
 	serviceName := "url-shortener"
+
+	redisURL := helpers.MustGetEnvVar("REDIS_URL")
+
+	opts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		panic(err)
+	}
+
+	client := redis.NewClient(opts)
+
+	sessionManager := scs.New()
+	sessionManager.Lifetime = time.Minute * 15
+	sessionManager.Store = goredisstore.New(client)
+	sessionManager.Cookie = scs.SessionCookie{
+		Name:        "urlshortener-session",
+		HttpOnly:    true,
+		Secure:      true,
+		SameSite:    http.SameSiteLaxMode,
+		Partitioned: false,
+		Persist:     true,
+		Path:        "/",
+		Domain:      "",
+	}
 
 	multiHandler := telemetry.NewMultiHandler(
 		telemetry.NewHandler(serviceName),
@@ -91,7 +103,7 @@ func setupRoutes(
 
 	usecases := usecase.New(healthUC, userUC)
 
-	handlers := rest.New(usecases)
+	handlers := rest.New(usecases, sessionManager)
 
 	r := chi.NewRouter()
 
@@ -108,18 +120,23 @@ func setupRoutes(
 	}))
 	r.Use(telemetry.MetricsMiddleware(serviceName))
 	r.Use(middleware.Recoverer)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // Max request body size of 1MB
+			next.ServeHTTP(w, r)
+		})
+	})
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   strings.Split(helpers.MustGetEnvVar("CORS_ALLOWED_ORIGINS"), ","),
 		AllowedMethods:   []string{"GET", "POST", "DELETE", "OPTIONS", "PUT"},
-		AllowCredentials: false,
+		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-	r.Use(middleware.ThrottleBacklog(throttleLimit, backlogLimit, backlogTimeout))
 	r.Use(middleware.Timeout(requestTimeout))
 
 	// Public routes
 	r.Group(func(r chi.Router) {
-		r.Use(httprate.LimitByIP(100, time.Minute*1))
+		r.Use(httprate.LimitByIP(10, time.Minute*1))
 
 		r.Get("/health", handlers.HealthCheck)
 	})
@@ -127,13 +144,32 @@ func setupRoutes(
 	r.Group(func(r chi.Router) {
 		r.Route("/api", func(r chi.Router) {
 			r.Route("/auth", func(r chi.Router) {
-				r.Post("/register", handlers.CreateUserEmailPassword)
-				r.Post("/login", handlers.Login)
-				r.Post("/validate-password", handlers.ValidatePassword)
-				r.Post("/refresh", handlers.RefreshAccessToken)
-
+				r.Route("/register", func(r chi.Router) {
+					r.Use(sessionManager.LoadAndSave)
+					r.Use(httprate.LimitByIP(5, time.Minute*1))
+					r.Post("/", handlers.CreateUserEmailPassword)
+				})
+				r.Route("/login", func(r chi.Router) {
+					r.Use(sessionManager.LoadAndSave)
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.Login)
+				})
+				r.Route("/validate-password", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.ValidatePassword)
+				})
+				r.Route("/refresh", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(5, time.Minute*10))
+					r.Post("/", handlers.RefreshAccessToken)
+				})
 				r.Route("/verify-otp", func(r chi.Router) {
-					r.Use(AuthMiddleware(userUC))
+					r.Use(sessionManager.LoadAndSave)
+					r.Use(httprate.Limit(
+						5,
+						15*time.Minute,
+						httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+							return sessionManager.GetString(r.Context(), "user_id"), nil
+						})))
 					r.Post("/", handlers.VerifyOTP)
 				})
 			})
@@ -160,11 +196,11 @@ func setupRoutes(
 				r.Get("/{slug}", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
-			r.Route("/debug", func(r chi.Router) {
-				r.Use(AuthMiddleware(userUC))
-
-				r.Mount("/", middleware.Profiler())
-			})
+			if debug {
+				r.Route("/debug", func(r chi.Router) {
+					r.Mount("/", middleware.Profiler())
+				})
+			}
 		})
 	})
 

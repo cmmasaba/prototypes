@@ -50,16 +50,10 @@ func TestRepository_CreateShortLink(t *testing.T) {
 			}
 
 			got, gotErr := r.CreateShortLink(tt.args.ctx, tt.args.input)
-			if gotErr != nil {
-				if !tt.wantErr {
-					t.Errorf("CreateShortLink() failed: %v", gotErr)
-				}
+			if (gotErr != nil) != tt.wantErr {
+				t.Errorf("CreateShortLink() err = %v wantErr: %v", gotErr, tt.wantErr)
 
 				return
-			}
-
-			if tt.wantErr {
-				t.Fatal("CreateShortLink() succeeded unexpectedly")
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
@@ -97,16 +91,10 @@ func TestRepository_GetLinkByCode(t *testing.T) {
 			}
 
 			got, gotErr := r.GetLinkByCode(context.Background(), tt.code)
-			if gotErr != nil {
-				if !tt.wantErr {
-					t.Errorf("GetLinkByCode() failed: %v", gotErr)
-				}
+			if (gotErr != nil) != tt.wantErr {
+				t.Errorf("GetLinkByCode() err =  %v wantErr = %v", gotErr, tt.wantErr)
 
 				return
-			}
-
-			if tt.wantErr {
-				t.Fatal("GetLinkByCode() succeeded unexpectedly")
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {

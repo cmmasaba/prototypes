@@ -14,16 +14,16 @@ type Querier interface {
 	CreateOTP(ctx context.Context, arg CreateOTPParams) error
 	GetClicksByLinkIDAndClickedAt(ctx context.Context, arg GetClicksByLinkIDAndClickedAtParams) ([]Click, error)
 	GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicksByLinkIDAndCountryParams) ([]Click, error)
+	GetExpiredShortLinkByUserID(ctx context.Context, userID int64) ([]GetExpiredShortLinkByUserIDRow, error)
 	GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAndUserIDParams) (GetOTPByCodeAndUserIDRow, error)
-	GetRefreshTokenByToken(ctx context.Context, tokenHash string) (RefreshToken, error)
-	GetShortLinkByCode(ctx context.Context, shortCode string) (Link, error)
-	GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error)
+	GetRefreshTokenByToken(ctx context.Context, token string) (RefreshToken, error)
+	GetShortLinkByCode(ctx context.Context, shortCode string) (GetShortLinkByCodeRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDParams) (User, error)
 	GetUserByPublicID(ctx context.Context, publicID pgtype.UUID) (User, error)
-	RevokeOTP(ctx context.Context, code string) error
-	RevokeRefreshToken(ctx context.Context, tokenHash string) error
+	RevokeAllOTPsForUser(ctx context.Context, arg RevokeAllOTPsForUserParams) error
+	RevokeRefreshToken(ctx context.Context, token string) error
 	SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Click, error)
 	SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error
 	SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (Link, error)

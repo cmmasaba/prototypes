@@ -29,11 +29,6 @@ Scenarios where UUID is better choice:
 
 ### Email/Password
 
-References:
-
-- [Medium Article](https://medium.com/@loggd/building-secure-authentication-a-complete-guide-to-jwts-passwords-mfa-and-oauth-fdad8d243b91)
-- [PDF on password security](https://docs.cloud.google.com/solutions/modern-password-security-for-system-designers.pdf)
-
 Considerations:
 
 - return the same error message (invalid credentials) for all authentication failures to combat `user enumeration` attacks.
@@ -59,6 +54,10 @@ Delegate authentication to OAuth providers
 Use MFA to boost security i.e password, TOTP
 For JWT use ED25519 algorithm instead of HS256
 
+References
+
 - Generating JWT secrets: [online](https://jwtsecretkeygenerator.com/)
+- Do you need OAuth and OIDC? [article](https://hackernoon.com/you-probably-dont-need-oauth2openid-connect-heres-why)
+- Considerations for building Auth systems [article 1](https://medium.com/@loggd/building-secure-authentication-a-complete-guide-to-jwts-passwords-mfa-and-oauth-fdad8d243b91) [article 2](https://docs.cloud.google.com/solutions/modern-password-security-for-system-designers.pdf)
 
 ## Telemetry

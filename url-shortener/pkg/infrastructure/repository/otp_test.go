@@ -6,12 +6,13 @@ import (
 	"testing"
 
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 )
 
-func TestRepository_SaveRefreshToken(t *testing.T) {
+func TestRepository_CreateOTP(t *testing.T) {
 	tests := []struct {
 		name    string
-		input   domain.RefreshToken
+		input   *domain.OTP
 		wantErr bool
 	}{
 		// TODO: Add test cases.
@@ -23,9 +24,9 @@ func TestRepository_SaveRefreshToken(t *testing.T) {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
 
-			gotErr := r.SaveRefreshToken(context.Background(), tt.input)
+			gotErr := r.CreateOTP(context.Background(), tt.input)
 			if (gotErr != nil) != tt.wantErr {
-				t.Errorf("SaveRefreshToken() err = %v wantErr = %v", gotErr, tt.wantErr)
+				t.Errorf("CreateOTP() err = %v wantErr = %v", gotErr, tt.wantErr)
 
 				return
 			}
@@ -33,11 +34,13 @@ func TestRepository_SaveRefreshToken(t *testing.T) {
 	}
 }
 
-func TestRepository_GetRefreshTokenByTokenHash(t *testing.T) {
+func TestRepository_GetOTPByCodeAndUser(t *testing.T) {
 	tests := []struct {
 		name    string
-		token   string
-		want    *domain.RefreshToken
+		code    string
+		user    string
+		purpose dto.OTPPurpose
+		want    *domain.OTP
 		wantErr bool
 	}{
 		// TODO: Add test cases.
@@ -49,24 +52,25 @@ func TestRepository_GetRefreshTokenByTokenHash(t *testing.T) {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
 
-			got, gotErr := r.GetRefreshTokenByTokenHash(context.Background(), tt.token)
+			got, gotErr := r.GetOTPByCodeAndUser(context.Background(), tt.code, tt.user, tt.purpose)
 			if (gotErr != nil) != tt.wantErr {
-				t.Errorf("GetRefreshTokenByTokenHash() err = %v wantErr = %v", gotErr, tt.wantErr)
+				t.Errorf("GetOTPByCodeAndUser() err = %v wantErr %v", gotErr, tt.wantErr)
 
 				return
 			}
 
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetRefreshTokenByTokenHash() = %v, want %v", got, tt.want)
+				t.Errorf("GetOTPByCodeAndUser() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestRepository_RevokeRefreshToken(t *testing.T) {
+func TestRepository_RevokeAllOTPs(t *testing.T) {
 	tests := []struct {
 		name    string
-		token   string
+		user    string
+		purpose string
 		wantErr bool
 	}{
 		// TODO: Add test cases.
@@ -78,9 +82,9 @@ func TestRepository_RevokeRefreshToken(t *testing.T) {
 				t.Fatalf("could not construct receiver type: %v", err)
 			}
 
-			gotErr := r.RevokeRefreshToken(context.Background(), tt.token)
+			gotErr := r.RevokeAllOTPsForUser(context.Background(), tt.user, tt.purpose)
 			if (gotErr != nil) != tt.wantErr {
-				t.Errorf("RevokeRefreshToken() err = %v wantErr = %v", gotErr, tt.wantErr)
+				t.Errorf("RevokeAllOTPs() err %v wantErr = %v", gotErr, tt.wantErr)
 
 				return
 			}

@@ -12,7 +12,7 @@ type Click struct {
 	ID         int64
 	LinkID     int64
 	ClickedAt  pgtype.Timestamptz
-	IpHash     string
+	IpHash     pgtype.Text
 	Referrer   pgtype.Text
 	UserAgent  pgtype.Text
 	DeviceType pgtype.Text
@@ -35,31 +35,31 @@ type Link struct {
 }
 
 type Otp struct {
-	ID        int64
-	UserID    int64
-	Code      string
-	CreatedAt pgtype.Timestamptz
-	ExpiresAt pgtype.Timestamptz
-	Purpose   string
-	Valid     bool
+	ID           int64
+	UserPublicID pgtype.UUID
+	Purpose      string
+	Code         string
+	Revoked      bool
+	CreatedAt    pgtype.Timestamptz
+	ExpiresAt    pgtype.Timestamptz
 }
 
 type RefreshToken struct {
 	ID        int64
 	UserID    int64
-	TokenHash string
+	Token     string
 	ExpiresAt pgtype.Timestamptz
 	CreatedAt pgtype.Timestamptz
-	Revoked   pgtype.Bool
+	Revoked   bool
 }
 
 type User struct {
 	ID              int64
+	PublicID        pgtype.UUID
 	Email           string
-	PasswordHash    pgtype.Text
+	Password        pgtype.Text
 	OauthProvider   pgtype.Text
 	OauthProviderID pgtype.Text
 	CreatedAt       pgtype.Timestamptz
 	DeletedAt       pgtype.Timestamptz
-	PublicID        pgtype.UUID
 }

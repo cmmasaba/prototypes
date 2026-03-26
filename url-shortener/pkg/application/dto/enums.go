@@ -29,3 +29,21 @@ func (o OTPPurpose) IsValid() bool {
 		return false
 	}
 }
+
+type EmailDeliveryType string
+
+const (
+	TypeVerificationEmail  EmailDeliveryType = "email:account-verification-otp"
+	TypeLoginEmail         EmailDeliveryType = "email:login-otp"
+	TypePasswordResetEmail EmailDeliveryType = "email:password-reset-otp"
+	TypeSecurityAlertEmail EmailDeliveryType = "email:security-alert"
+)
+
+func (e EmailDeliveryType) IsValid() bool {
+	switch e {
+	case TypeVerificationEmail, TypeLoginEmail, TypePasswordResetEmail, TypeSecurityAlertEmail:
+		return true
+	default:
+		return false
+	}
+}

@@ -8,7 +8,6 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // SaveRefreshToken returns nil if refresh token is saved successfully.
@@ -18,9 +17,9 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 
 	err := r.db.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
 		UserID:    input.UserID,
-		TokenHash: input.Token,
+		Token:     input.Token,
 		ExpiresAt: timeToTimestamptz(&input.ExpireAt),
-		Revoked:   pgtype.Bool{Bool: input.Revoked, Valid: true},
+		Revoked:   input.Revoked,
 	})
 	if err != nil {
 		telemetry.RecordError(span, err)
@@ -38,11 +37,11 @@ func (r *Repository) GetRefreshTokenByTokenHash(ctx context.Context, token strin
 
 	res, err := r.db.GetRefreshTokenByToken(ctx, token)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
 
 		return nil, err
 	}
@@ -50,10 +49,10 @@ func (r *Repository) GetRefreshTokenByTokenHash(ctx context.Context, token strin
 	return &domain.RefreshToken{
 		ID:        res.ID,
 		UserID:    res.UserID,
-		Token:     res.TokenHash,
+		Token:     res.Token,
 		ExpireAt:  res.ExpiresAt.Time,
 		CreatedAt: &res.CreatedAt.Time,
-		Revoked:   res.Revoked.Bool,
+		Revoked:   res.Revoked,
 	}, nil
 }
 

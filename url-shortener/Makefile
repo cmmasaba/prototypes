@@ -45,6 +45,12 @@ format:
 	gofumpt -w .
 	golines -w --max-len=120 .
 
+# Run all tests
+.PHONY: test
+test:
+	@echo "==> Running tests..."
+	go test -timeout 30s -coverprofile=/tmp/coverage.out -v -race ./...
+
 # Start docker container
 .PHONY: compose
 compose:

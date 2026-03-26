@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
@@ -21,21 +22,23 @@ const (
 var ErrInvalidRequestBody = errors.New("invalid request body")
 
 type usecases interface {
-	CheckDBConnection(ctx context.Context) bool
-	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.AuthResponse, error)
+	HealthCheck(ctx context.Context) map[string]bool
+	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.OTPRequiredResponse, error)
 	ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool
-	Login(ctx context.Context, input *dto.LoginInput) (*dto.AuthResponse, error)
+	Login(ctx context.Context, input *dto.LoginInput) (*dto.OTPRequiredResponse, error)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (*dto.RefreshAccessTokenResponse, error)
-	VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (bool, error)
+	VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (*dto.AuthResponse, error)
 }
 
 type Handlers struct {
 	uc usecases
+	sm *scs.SessionManager
 }
 
-func New(uc usecases) *Handlers {
+func New(uc usecases, sm *scs.SessionManager) *Handlers {
 	return &Handlers{
 		uc: uc,
+		sm: sm,
 	}
 }
 
@@ -71,11 +74,7 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// do checks for all infra services i.e cache, database, and other critical components.
-	ok := h.uc.CheckDBConnection(ctx)
-
-	resp := map[string]bool{
-		"db": ok,
-	}
+	resp := h.uc.HealthCheck(ctx)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -85,7 +84,7 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// CreateUserEmailPassword persists a new user to the database.
+// CreateUserEmailPassword persists a new user and initiates OTP verification.
 func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "CreateUserEmailPassword")
 	defer span.End()
@@ -112,6 +111,8 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 
 		return
 	}
+
+	h.sm.Put(ctx, "user_id", resp.User.PublicID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -145,7 +146,7 @@ func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Login authenticates the user by email/password.
+// Login authenticates credentials and initiates OTP verification.
 func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "Login")
 	defer span.End()
@@ -160,11 +161,13 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 
 		return
 	}
+
+	h.sm.Put(ctx, "user_id", resp.User.PublicID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -190,7 +193,7 @@ func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, auth.ErrExpiredToken) || errors.Is(err, auth.ErrInvalidToken) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 
 		return
@@ -205,29 +208,38 @@ func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// VerifyOTP does OTP verification.
+// VerifyOTP validates the OTP using the session and returns JWT tokens on success.
 func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "VerifyOTP")
 	defer span.End()
+
+	userID := h.sm.GetString(ctx, "user_id")
+	if userID == "" {
+		http.Error(w, "session expired or invalid", http.StatusUnauthorized)
+
+		return
+	}
+
+	ctx = helpers.SetUserIDCtx(ctx, userID)
 
 	input, ok := decodeAndValidate[dto.VerifyOTPInput](ctx, r, w)
 	if !ok {
 		return
 	}
 
-	ok, err := h.uc.VerifyOTP(ctx, input)
+	resp, err := h.uc.VerifyOTP(ctx, input)
 	if err != nil {
 		if errors.Is(err, auth.ErrExpiredOTPCode) || errors.Is(err, auth.ErrIncorrectOTP) || errors.Is(err, auth.ErrInvalidOTPCode) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
 		}
 
 		return
 	}
 
-	resp := map[string]bool{
-		"verified": ok,
+	if err := h.sm.Destroy(ctx); err != nil {
+		slog.ErrorContext(ctx, "destroy session failed", "err", err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")

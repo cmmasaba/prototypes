@@ -1,20 +1,22 @@
 -- name: SaveShortLink :one
 INSERT INTO links (
-	short_code, original_url, ownership_token, expires_at
+	user_id, short_code, original_url, ownership_token, expires_at
 ) VALUES (
-	$1, $2, $3, $4
+	$1, $2, $3, $4, $5
 )
 RETURNING *;
 
 -- name: GetShortLinkByCode :one
-SELECT * FROM links
+SELECT id, user_id, short_code, original_url, ownership_token FROM links
 WHERE
 	short_code = $1;
 
--- name: GetShortLinkByExpiresAt :many
-SELECT * FROM links
+-- name: GetExpiredShortLinkByUserID :many
+SELECT id, user_id, short_code, original_url, ownership_token FROM links
 WHERE
-	expires_at IS NOT NULL;
+	user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
+ORDER BY created_at
+LIMIT 50;
 
 -- name: SaveNewClick :one
 INSERT INTO clicks (
@@ -27,16 +29,20 @@ RETURNING *;
 -- name: GetClicksByLinkIDAndClickedAt :many
 SELECT * FROM clicks
 WHERE
-	link_id = $1 AND clicked_at = $2;
+	link_id = $1 AND clicked_at = $2
+ORDER BY clicked_at
+LIMIT 50;
 
 -- name: GetClicksByLinkIDAndCountry :many
 SELECT * FROM clicks
 WHERE
-	link_id= $1 AND country = $2;
+	link_id= $1 AND country = $2
+ORDER BY clicked_at
+LIMIT 50;
 
 -- name: SaveUser :one
 INSERT INTO users (
-	email, password_hash, oauth_provider, oauth_provider_id
+	email, password, oauth_provider, oauth_provider_id
 ) VALUES (
 	$1, $2, $3, $4
 )
@@ -44,7 +50,7 @@ RETURNING *;
 
 -- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token_hash, expires_at, revoked
+	user_id, token, expires_at, revoked
 ) VALUES (
 	$1, $2, $3, $4
 );
@@ -67,14 +73,14 @@ WHERE
 -- name: GetRefreshTokenByToken :one
 SELECT * FROM refresh_tokens
 WHERE
-	token_hash = $1;
+	token = $1;
 
 -- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET
-	revoked = FALSE
+	revoked = TRUE
 WHERE
-	token_hash = $1;
+	token = $1;
 
 -- name: GetUserByPublicID :one
 SELECT * FROM users
@@ -83,16 +89,17 @@ WHERE
 
 -- name: CreateOTP :exec
 INSERT INTO otp (
-	user_id, code, expires_at, purpose, valid
+	code, expires_at, purpose, revoked, user_public_id
 ) VALUES (
 	$1, $2, $3, $4, $5
 );
 
 -- name: GetOTPByCodeAndUserID :one
-SELECT code, user_id, valid, expires_at FROM otp
+SELECT code, user_public_id, revoked, expires_at FROM otp
 WHERE
-	code=$1 AND user_id=$2 AND purpose=$3
+	user_public_id=$1 AND code=$2 AND purpose=$3
 LIMIT 1;
 
--- name: RevokeOTP :exec
-UPDATE otp SET valid = FALSE WHERE code = $1;
+-- name: RevokeAllOTPsForUser :exec
+UPDATE otp SET revoked = TRUE
+WHERE user_public_id=$1 AND purpose=$2 AND revoked=FALSE;

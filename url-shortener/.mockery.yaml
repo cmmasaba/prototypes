@@ -1,0 +1,29 @@
+all: false
+dir: '{{.InterfaceDir}}/mocks'
+force-file-write: true
+formatter: goimports
+log-level: warn
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: '{{.Template}}.schema.json'
+filename: '{{base .InterfaceDir}}_mocks.go'
+structname: 'Mock{{.InterfaceName}}'
+pkgname: 'mocks'
+packages:
+  github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck:
+    interfaces:
+      queue:
+      repository:
+  github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth:
+    interfaces:
+      repo:
+      hibp:
+      backgroundTasks:
+      otp:
+  github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest:
+    interfaces:
+      usecases:
+  github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/otp:
+    interfaces:
+      repository:

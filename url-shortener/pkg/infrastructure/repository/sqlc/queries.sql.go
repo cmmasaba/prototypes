@@ -13,27 +13,27 @@ import (
 
 const createOTP = `-- name: CreateOTP :exec
 INSERT INTO otp (
-	user_id, code, expires_at, purpose, valid
+	code, expires_at, purpose, revoked, user_public_id
 ) VALUES (
 	$1, $2, $3, $4, $5
 )
 `
 
 type CreateOTPParams struct {
-	UserID    int64
-	Code      string
-	ExpiresAt pgtype.Timestamptz
-	Purpose   string
-	Valid     bool
+	Code         string
+	ExpiresAt    pgtype.Timestamptz
+	Purpose      string
+	Revoked      bool
+	UserPublicID pgtype.UUID
 }
 
 func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) error {
 	_, err := q.db.Exec(ctx, createOTP,
-		arg.UserID,
 		arg.Code,
 		arg.ExpiresAt,
 		arg.Purpose,
-		arg.Valid,
+		arg.Revoked,
+		arg.UserPublicID,
 	)
 	return err
 }
@@ -126,104 +126,35 @@ func (q *Queries) GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicks
 	return items, nil
 }
 
-const getOTPByCodeAndUserID = `-- name: GetOTPByCodeAndUserID :one
-SELECT code, user_id, valid, expires_at FROM otp
+const getExpiredShortLinkByUserID = `-- name: GetExpiredShortLinkByUserID :many
+SELECT id, user_id, short_code, original_url, ownership_token FROM links
 WHERE
-	code=$1 AND user_id=$2 AND purpose=$3
-LIMIT 1
+	user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
 `
 
-type GetOTPByCodeAndUserIDParams struct {
-	Code    string
-	UserID  int64
-	Purpose string
+type GetExpiredShortLinkByUserIDRow struct {
+	ID             int64
+	UserID         int64
+	ShortCode      string
+	OriginalUrl    string
+	OwnershipToken string
 }
 
-type GetOTPByCodeAndUserIDRow struct {
-	Code      string
-	UserID    int64
-	Valid     bool
-	ExpiresAt pgtype.Timestamptz
-}
-
-func (q *Queries) GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAndUserIDParams) (GetOTPByCodeAndUserIDRow, error) {
-	row := q.db.QueryRow(ctx, getOTPByCodeAndUserID, arg.Code, arg.UserID, arg.Purpose)
-	var i GetOTPByCodeAndUserIDRow
-	err := row.Scan(
-		&i.Code,
-		&i.UserID,
-		&i.Valid,
-		&i.ExpiresAt,
-	)
-	return i, err
-}
-
-const getRefreshTokenByToken = `-- name: GetRefreshTokenByToken :one
-SELECT id, user_id, token_hash, expires_at, created_at, revoked FROM refresh_tokens
-WHERE
-	token_hash = $1
-`
-
-func (q *Queries) GetRefreshTokenByToken(ctx context.Context, tokenHash string) (RefreshToken, error) {
-	row := q.db.QueryRow(ctx, getRefreshTokenByToken, tokenHash)
-	var i RefreshToken
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.TokenHash,
-		&i.ExpiresAt,
-		&i.CreatedAt,
-		&i.Revoked,
-	)
-	return i, err
-}
-
-const getShortLinkByCode = `-- name: GetShortLinkByCode :one
-SELECT id, user_id, short_code, original_url, ownership_token, created_at, expires_at, active FROM links
-WHERE
-	short_code = $1
-`
-
-func (q *Queries) GetShortLinkByCode(ctx context.Context, shortCode string) (Link, error) {
-	row := q.db.QueryRow(ctx, getShortLinkByCode, shortCode)
-	var i Link
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.ShortCode,
-		&i.OriginalUrl,
-		&i.OwnershipToken,
-		&i.CreatedAt,
-		&i.ExpiresAt,
-		&i.Active,
-	)
-	return i, err
-}
-
-const getShortLinkByExpiresAt = `-- name: GetShortLinkByExpiresAt :many
-SELECT id, user_id, short_code, original_url, ownership_token, created_at, expires_at, active FROM links
-WHERE
-	expires_at IS NOT NULL
-`
-
-func (q *Queries) GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error) {
-	rows, err := q.db.Query(ctx, getShortLinkByExpiresAt)
+func (q *Queries) GetExpiredShortLinkByUserID(ctx context.Context, userID int64) ([]GetExpiredShortLinkByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getExpiredShortLinkByUserID, userID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Link
+	var items []GetExpiredShortLinkByUserIDRow
 	for rows.Next() {
-		var i Link
+		var i GetExpiredShortLinkByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
 			&i.ShortCode,
 			&i.OriginalUrl,
 			&i.OwnershipToken,
-			&i.CreatedAt,
-			&i.ExpiresAt,
-			&i.Active,
 		); err != nil {
 			return nil, err
 		}
@@ -235,8 +166,87 @@ func (q *Queries) GetShortLinkByExpiresAt(ctx context.Context) ([]Link, error) {
 	return items, nil
 }
 
+const getOTPByCodeAndUserID = `-- name: GetOTPByCodeAndUserID :one
+SELECT code, user_public_id, revoked, expires_at FROM otp
+WHERE
+	user_public_id=$1 AND code=$2 AND purpose=$3
+LIMIT 1
+`
+
+type GetOTPByCodeAndUserIDParams struct {
+	UserPublicID pgtype.UUID
+	Code         string
+	Purpose      string
+}
+
+type GetOTPByCodeAndUserIDRow struct {
+	Code         string
+	UserPublicID pgtype.UUID
+	Revoked      bool
+	ExpiresAt    pgtype.Timestamptz
+}
+
+func (q *Queries) GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAndUserIDParams) (GetOTPByCodeAndUserIDRow, error) {
+	row := q.db.QueryRow(ctx, getOTPByCodeAndUserID, arg.UserPublicID, arg.Code, arg.Purpose)
+	var i GetOTPByCodeAndUserIDRow
+	err := row.Scan(
+		&i.Code,
+		&i.UserPublicID,
+		&i.Revoked,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
+const getRefreshTokenByToken = `-- name: GetRefreshTokenByToken :one
+SELECT id, user_id, token, expires_at, created_at, revoked FROM refresh_tokens
+WHERE
+	token = $1
+`
+
+func (q *Queries) GetRefreshTokenByToken(ctx context.Context, token string) (RefreshToken, error) {
+	row := q.db.QueryRow(ctx, getRefreshTokenByToken, token)
+	var i RefreshToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Token,
+		&i.ExpiresAt,
+		&i.CreatedAt,
+		&i.Revoked,
+	)
+	return i, err
+}
+
+const getShortLinkByCode = `-- name: GetShortLinkByCode :one
+SELECT id, user_id, short_code, original_url, ownership_token FROM links
+WHERE
+	short_code = $1
+`
+
+type GetShortLinkByCodeRow struct {
+	ID             int64
+	UserID         int64
+	ShortCode      string
+	OriginalUrl    string
+	OwnershipToken string
+}
+
+func (q *Queries) GetShortLinkByCode(ctx context.Context, shortCode string) (GetShortLinkByCodeRow, error) {
+	row := q.db.QueryRow(ctx, getShortLinkByCode, shortCode)
+	var i GetShortLinkByCodeRow
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.ShortCode,
+		&i.OriginalUrl,
+		&i.OwnershipToken,
+	)
+	return i, err
+}
+
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, deleted_at, public_id FROM users
+SELECT id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at FROM users
 WHERE
 	email = $1
 `
@@ -246,19 +256,19 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.PublicID,
 		&i.Email,
-		&i.PasswordHash,
+		&i.Password,
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
 		&i.DeletedAt,
-		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, deleted_at, public_id FROM users
+SELECT id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at FROM users
 WHERE
 	id = $1
 `
@@ -268,19 +278,19 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.PublicID,
 		&i.Email,
-		&i.PasswordHash,
+		&i.Password,
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
 		&i.DeletedAt,
-		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUserByOauthID = `-- name: GetUserByOauthID :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, deleted_at, public_id FROM users
+SELECT id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2
 `
@@ -295,19 +305,19 @@ func (q *Queries) GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDPara
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.PublicID,
 		&i.Email,
-		&i.PasswordHash,
+		&i.Password,
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
 		&i.DeletedAt,
-		&i.PublicID,
 	)
 	return i, err
 }
 
 const getUserByPublicID = `-- name: GetUserByPublicID :one
-SELECT id, email, password_hash, oauth_provider, oauth_provider_id, created_at, deleted_at, public_id FROM users
+SELECT id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at FROM users
 WHERE
 	public_id = $1
 `
@@ -317,36 +327,42 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID pgtype.UUID) (
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.PublicID,
 		&i.Email,
-		&i.PasswordHash,
+		&i.Password,
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
 		&i.DeletedAt,
-		&i.PublicID,
 	)
 	return i, err
 }
 
-const revokeOTP = `-- name: RevokeOTP :exec
-UPDATE otp SET valid = FALSE WHERE code = $1
+const revokeAllOTPsForUser = `-- name: RevokeAllOTPsForUser :exec
+UPDATE otp SET revoked = TRUE
+WHERE user_public_id=$1 AND purpose=$2 AND revoked=FALSE
 `
 
-func (q *Queries) RevokeOTP(ctx context.Context, code string) error {
-	_, err := q.db.Exec(ctx, revokeOTP, code)
+type RevokeAllOTPsForUserParams struct {
+	UserPublicID pgtype.UUID
+	Purpose      string
+}
+
+func (q *Queries) RevokeAllOTPsForUser(ctx context.Context, arg RevokeAllOTPsForUserParams) error {
+	_, err := q.db.Exec(ctx, revokeAllOTPsForUser, arg.UserPublicID, arg.Purpose)
 	return err
 }
 
 const revokeRefreshToken = `-- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
 SET
-	revoked = FALSE
+	revoked = TRUE
 WHERE
-	token_hash = $1
+	token = $1
 `
 
-func (q *Queries) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
-	_, err := q.db.Exec(ctx, revokeRefreshToken, tokenHash)
+func (q *Queries) RevokeRefreshToken(ctx context.Context, token string) error {
+	_, err := q.db.Exec(ctx, revokeRefreshToken, token)
 	return err
 }
 
@@ -362,7 +378,7 @@ RETURNING id, link_id, clicked_at, ip_hash, referrer, user_agent, device_type, b
 type SaveNewClickParams struct {
 	LinkID     int64
 	ClickedAt  pgtype.Timestamptz
-	IpHash     string
+	IpHash     pgtype.Text
 	Referrer   pgtype.Text
 	UserAgent  pgtype.Text
 	DeviceType pgtype.Text
@@ -405,7 +421,7 @@ func (q *Queries) SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Cli
 
 const saveRefreshToken = `-- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token_hash, expires_at, revoked
+	user_id, token, expires_at, revoked
 ) VALUES (
 	$1, $2, $3, $4
 )
@@ -413,15 +429,15 @@ INSERT INTO refresh_tokens (
 
 type SaveRefreshTokenParams struct {
 	UserID    int64
-	TokenHash string
+	Token     string
 	ExpiresAt pgtype.Timestamptz
-	Revoked   pgtype.Bool
+	Revoked   bool
 }
 
 func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error {
 	_, err := q.db.Exec(ctx, saveRefreshToken,
 		arg.UserID,
-		arg.TokenHash,
+		arg.Token,
 		arg.ExpiresAt,
 		arg.Revoked,
 	)
@@ -430,14 +446,15 @@ func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenPara
 
 const saveShortLink = `-- name: SaveShortLink :one
 INSERT INTO links (
-	short_code, original_url, ownership_token, expires_at
+	user_id, short_code, original_url, ownership_token, expires_at
 ) VALUES (
-	$1, $2, $3, $4
+	$1, $2, $3, $4, $5
 )
 RETURNING id, user_id, short_code, original_url, ownership_token, created_at, expires_at, active
 `
 
 type SaveShortLinkParams struct {
+	UserID         int64
 	ShortCode      string
 	OriginalUrl    string
 	OwnershipToken string
@@ -446,6 +463,7 @@ type SaveShortLinkParams struct {
 
 func (q *Queries) SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (Link, error) {
 	row := q.db.QueryRow(ctx, saveShortLink,
+		arg.UserID,
 		arg.ShortCode,
 		arg.OriginalUrl,
 		arg.OwnershipToken,
@@ -467,16 +485,16 @@ func (q *Queries) SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (L
 
 const saveUser = `-- name: SaveUser :one
 INSERT INTO users (
-	email, password_hash, oauth_provider, oauth_provider_id
+	email, password, oauth_provider, oauth_provider_id
 ) VALUES (
 	$1, $2, $3, $4
 )
-RETURNING id, email, password_hash, oauth_provider, oauth_provider_id, created_at, deleted_at, public_id
+RETURNING id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at
 `
 
 type SaveUserParams struct {
 	Email           string
-	PasswordHash    pgtype.Text
+	Password        pgtype.Text
 	OauthProvider   pgtype.Text
 	OauthProviderID pgtype.Text
 }
@@ -484,20 +502,20 @@ type SaveUserParams struct {
 func (q *Queries) SaveUser(ctx context.Context, arg SaveUserParams) (User, error) {
 	row := q.db.QueryRow(ctx, saveUser,
 		arg.Email,
-		arg.PasswordHash,
+		arg.Password,
 		arg.OauthProvider,
 		arg.OauthProviderID,
 	)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.PublicID,
 		&i.Email,
-		&i.PasswordHash,
+		&i.Password,
 		&i.OauthProvider,
 		&i.OauthProviderID,
 		&i.CreatedAt,
 		&i.DeletedAt,
-		&i.PublicID,
 	)
 	return i, err
 }

@@ -20,7 +20,7 @@ func (r *Repository) CreateClickData(ctx context.Context, data domain.Click) (*d
 	click, err := r.db.SaveNewClick(ctx, sqlc.SaveNewClickParams{
 		ClickedAt:  pgtype.Timestamptz{Time: data.ClickedAt, Valid: true},
 		LinkID:     data.LinkID,
-		IpHash:     *data.IPHash,
+		IpHash:     stringToPgtypeText(data.IPHash),
 		Referrer:   stringToPgtypeText(data.Referrer),
 		UserAgent:  stringToPgtypeText(data.UserAgent),
 		DeviceType: stringToPgtypeText(data.DeviceType),
@@ -39,7 +39,7 @@ func (r *Repository) CreateClickData(ctx context.Context, data domain.Click) (*d
 		ID:         click.ID,
 		LinkID:     click.LinkID,
 		ClickedAt:  click.ClickedAt.Time,
-		IPHash:     &click.IpHash,
+		IPHash:     pgtypeTextToString(click.IpHash),
 		Referrer:   pgtypeTextToString(click.Referrer),
 		UserAgent:  pgtypeTextToString(click.UserAgent),
 		DeviceType: pgtypeTextToString(click.DeviceType),
@@ -65,7 +65,7 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, ErrNotFound
 		}
 
 		telemetry.RecordError(span, err)
@@ -81,7 +81,7 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(
 			ClickedAt:  item.ClickedAt.Time,
 			LinkID:     item.LinkID,
 			Referrer:   pgtypeTextToString(item.Referrer),
-			IPHash:     &item.IpHash,
+			IPHash:     pgtypeTextToString(item.IpHash),
 			UserAgent:  pgtypeTextToString(item.UserAgent),
 			DeviceType: pgtypeTextToString(item.DeviceType),
 			Os:         pgtypeTextToString(item.Os),
@@ -109,7 +109,7 @@ func (r *Repository) GetClicksByLinkIDAndCountry(
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, ErrNotFound
 		}
 
 		telemetry.RecordError(span, err)
@@ -125,7 +125,7 @@ func (r *Repository) GetClicksByLinkIDAndCountry(
 			ClickedAt:  item.ClickedAt.Time,
 			LinkID:     item.LinkID,
 			Referrer:   pgtypeTextToString(item.Referrer),
-			IPHash:     &item.IpHash,
+			IPHash:     pgtypeTextToString(item.IpHash),
 			UserAgent:  pgtypeTextToString(item.UserAgent),
 			DeviceType: pgtypeTextToString(item.DeviceType),
 			Os:         pgtypeTextToString(item.Os),

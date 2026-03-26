@@ -71,7 +71,8 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateShortLink")
 	defer span.End()
 
-	row, err := r.db.SaveShortLink(ctx, sqlc.SaveShortLinkParams{
+	res, err := r.db.SaveShortLink(ctx, sqlc.SaveShortLinkParams{
+		UserID:         data.UserID,
 		ShortCode:      data.ShortCode,
 		OriginalUrl:    data.OriginalURL,
 		OwnershipToken: data.OwnershipToken,
@@ -84,12 +85,11 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 	}
 
 	return &domain.Link{
-		ID:             row.ID,
-		ShortCode:      row.ShortCode,
-		OriginalURL:    row.OriginalUrl,
-		OwnershipToken: row.OwnershipToken,
-		CreatedAt:      row.CreatedAt.Time,
-		ExpiresAt:      timestamptzToTime(row.ExpiresAt),
+		ID:             res.ID,
+		UserID:         res.UserID,
+		ShortCode:      res.ShortCode,
+		OriginalURL:    res.OriginalUrl,
+		OwnershipToken: res.OwnershipToken,
 	}, nil
 }
 
@@ -98,23 +98,22 @@ func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Li
 	ctx, span := telemetry.Trace(ctx, packageName, "GetLinkByCode")
 	defer span.End()
 
-	link, err := r.db.GetShortLinkByCode(ctx, code)
+	res, err := r.db.GetShortLinkByCode(ctx, code)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 
 		return nil, err
 	}
 
 	return &domain.Link{
-		ID:             link.ID,
-		ShortCode:      link.ShortCode,
-		OriginalURL:    link.OriginalUrl,
-		OwnershipToken: link.OwnershipToken,
-		CreatedAt:      link.CreatedAt.Time,
-		ExpiresAt:      timestamptzToTime(link.ExpiresAt),
+		ID:             res.ID,
+		UserID:         res.UserID,
+		ShortCode:      res.ShortCode,
+		OriginalURL:    res.OriginalUrl,
+		OwnershipToken: res.OwnershipToken,
 	}, nil
 }

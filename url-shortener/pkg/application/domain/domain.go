@@ -9,6 +9,7 @@ import (
 
 type Link struct {
 	ID             int64
+	UserID         int64
 	ShortCode      string
 	OriginalURL    string
 	OwnershipToken string
@@ -50,9 +51,9 @@ type RefreshToken struct {
 }
 
 type OTP struct {
-	User      int64
+	PublicID  string
 	Code      string
 	ExpiresAt time.Time
-	Valid     bool
+	Revoked   bool
 	Purpose   dto.OTPPurpose
 }

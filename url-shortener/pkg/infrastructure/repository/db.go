@@ -6,10 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -28,6 +28,7 @@ const (
 var (
 	errAcquireDBConnFailed = errors.New("failed to acquire db connection")
 	errPingDBFailed        = errors.New("failed to ping db")
+	ErrNotFound            = errors.New("record not found")
 )
 
 // Repository encapsulates db operations.
@@ -36,14 +37,15 @@ type Repository struct {
 	pool *pgxpool.Pool
 }
 
-// New returns a [Repository] built from the passed connection string.
-//
-// connString should be a valid Postgres connection string.
+// New returns a *[Repository] built from the passed connection string.
 func New() (*Repository, error) {
-	connString, ok := os.LookupEnv("POSTGRES_URL")
-	if !ok {
-		return nil, fmt.Errorf("database connection string string not set")
-	}
+	user := helpers.MustGetEnvVar("POSTGRES_USER")
+	password := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
+	host := helpers.MustGetEnvVar("POSTGRES_HOST")
+	port := helpers.MustGetEnvVar("POSTGRES_PORT")
+	sslmode := helpers.MustGetEnvVar("POSTGRES_SSLMODE")
+	db := helpers.MustGetEnvVar("POSTGRES_DB")
+	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=%s", user, password, host, port, db, sslmode)
 
 	dbConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
@@ -56,7 +58,7 @@ func New() (*Repository, error) {
 	dbConfig.MaxConnIdleTime = defaultMaxConnIdleTime
 	dbConfig.HealthCheckPeriod = defaultHealthCheckPeriod
 	dbConfig.ConnConfig.ConnectTimeout = defaultConnectTimeout
-	dbConfig.ConnConfig.RuntimeParams["search_path"] = os.Getenv("DATABASE_SCHEMA")
+	dbConfig.ConnConfig.RuntimeParams["search_path"] = helpers.MustGetEnvVar("DATABASE_SCHEMA")
 
 	ctx := context.Background()
 
@@ -86,7 +88,7 @@ func New() (*Repository, error) {
 }
 
 // PingDB returns error if the database connection can't be pinged.
-func (r *Repository) PingDB(ctx context.Context) error {
+func (r *Repository) PingDB(ctx context.Context) bool {
 	ctx, span := telemetry.Trace(ctx, packageName, "PingDB")
 	defer span.End()
 
@@ -95,7 +97,7 @@ func (r *Repository) PingDB(ctx context.Context) error {
 		telemetry.RecordError(span, err)
 		slog.Error(errAcquireDBConnFailed.Error(), "err", err)
 
-		return errAcquireDBConnFailed
+		return false
 	}
 
 	defer connection.Release()
@@ -105,8 +107,8 @@ func (r *Repository) PingDB(ctx context.Context) error {
 		telemetry.RecordError(span, err)
 		slog.Error(errPingDBFailed.Error(), "err", err)
 
-		return errPingDBFailed
+		return false
 	}
 
-	return nil
+	return true
 }

@@ -1,4 +1,4 @@
-// Package healthcheck...
+// Package healthcheck returns the status of infra components.
 package healthcheck
 
 import (
@@ -11,31 +11,36 @@ const (
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
 )
 
-type usecase interface {
-	PingDB(context.Context) error
+type repository interface {
+	PingDB(context.Context) bool
 }
 
-type UsecaseImplHealth struct {
-	infra usecase
+type queue interface {
+	PingQueue(ctx context.Context) bool
 }
 
-func New(infrastructure usecase) *UsecaseImplHealth {
-	return &UsecaseImplHealth{
-		infra: infrastructure,
+type UsecaseImpl struct {
+	repo      repository
+	taskqueue queue
+}
+
+func New(repo repository, queue queue) *UsecaseImpl {
+	return &UsecaseImpl{
+		repo:      repo,
+		taskqueue: queue,
 	}
 }
 
-// CheckDBConnection returns true after pinging db connection.
-func (u *UsecaseImplHealth) CheckDBConnection(ctx context.Context) bool {
-	ctx, span := telemetry.Trace(ctx, packageName, "CheckDBConnection")
+// HealthCheck returns a map of infra service and a boolean indicating if it was reachable.
+func (u *UsecaseImpl) HealthCheck(ctx context.Context) map[string]bool {
+	ctx, span := telemetry.Trace(ctx, packageName, "HealthCheck")
 	defer span.End()
 
-	err := u.infra.PingDB(ctx)
-	if err != nil {
-		telemetry.RecordError(span, err)
+	dbStatus := u.repo.PingDB(ctx)
+	queueStatus := u.taskqueue.PingQueue(ctx)
 
-		return false
+	return map[string]bool{
+		"database":   dbStatus,
+		"tasksqueue": queueStatus,
 	}
-
-	return true
 }

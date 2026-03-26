@@ -14,7 +14,7 @@ const (
 )
 
 // AuthMiddleware extracts Authorization header from the request and validates it
-func AuthMiddleware(user *auth.UsecaseImplUser) func(next http.Handler) http.Handler {
+func AuthMiddleware(user *auth.UsecaseImpl) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, span := telemetry.Trace(r.Context(), packageName, "AuthMiddleware")

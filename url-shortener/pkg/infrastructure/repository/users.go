@@ -17,7 +17,7 @@ func (r *Repository) CreateUser(ctx context.Context, input *domain.User) (*domai
 
 	res, err := r.db.SaveUser(ctx, sqlc.SaveUserParams{
 		Email:           input.Email,
-		PasswordHash:    stringToPgtypeText(input.PasswordHash),
+		Password:        stringToPgtypeText(input.PasswordHash),
 		OauthProvider:   stringToPgtypeText(input.OauthProvider),
 		OauthProviderID: stringToPgtypeText(input.OauthProviderID),
 	})
@@ -41,11 +41,11 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 
 	res, err := r.db.GetUserByEmail(ctx, email)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 
 		return nil, err
 	}
@@ -54,7 +54,7 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 		ID:              res.ID,
 		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
-		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		PasswordHash:    pgtypeTextToString(res.Password),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),
 		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
 		CreatedAt:       res.CreatedAt.Time,
@@ -74,11 +74,11 @@ func (r *Repository) GetUserByOAuthID(
 		OauthProviderID: stringToPgtypeText(&oauthProviderID),
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 
 		return nil, err
 	}
@@ -87,7 +87,7 @@ func (r *Repository) GetUserByOAuthID(
 		ID:              res.ID,
 		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
-		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		PasswordHash:    pgtypeTextToString(res.Password),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),
 		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
 		CreatedAt:       res.CreatedAt.Time,
@@ -101,11 +101,11 @@ func (r *Repository) GetUserByID(ctx context.Context, id int64) (*domain.User, e
 
 	res, err := r.db.GetUserByID(ctx, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (r *Repository) GetUserByID(ctx context.Context, id int64) (*domain.User, e
 		ID:              res.ID,
 		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
-		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		PasswordHash:    pgtypeTextToString(res.Password),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),
 		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
 		CreatedAt:       res.CreatedAt.Time,
@@ -135,11 +135,11 @@ func (r *Repository) GetUserByPublicID(ctx context.Context, publicID string) (*d
 
 	res, err := r.db.GetUserByPublicID(ctx, pgUUID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
-		}
-
 		telemetry.RecordError(span, err)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 
 		return nil, err
 	}
@@ -148,7 +148,7 @@ func (r *Repository) GetUserByPublicID(ctx context.Context, publicID string) (*d
 		ID:              res.ID,
 		PublicID:        pgtypeUUIDToString(res.PublicID),
 		Email:           res.Email,
-		PasswordHash:    pgtypeTextToString(res.PasswordHash),
+		PasswordHash:    pgtypeTextToString(res.Password),
 		OauthProvider:   pgtypeTextToString(res.OauthProvider),
 		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
 		CreatedAt:       res.CreatedAt.Time,

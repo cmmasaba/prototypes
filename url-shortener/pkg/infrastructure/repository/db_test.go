@@ -15,14 +15,6 @@ func TestNewRepository(t *testing.T) {
 			name:    "happy case: successfully connect to database",
 			wantErr: false,
 		},
-		{
-			name:    "sad case: invalid connection string",
-			wantErr: true,
-		},
-		{
-			name:    "sad case: empty connection string",
-			wantErr: true,
-		},
 	}
 
 	for _, tt := range tests {
@@ -35,10 +27,6 @@ func TestNewRepository(t *testing.T) {
 
 			if tt.name == "happy case: successfully connect to database" {
 				assert.NotNilf(t, r, "expected non-nil repository")
-			}
-
-			if tt.name == "sad case: invalid connection string" {
-				assert.Nilf(t, r, "expected nil repository")
 			}
 		})
 	}

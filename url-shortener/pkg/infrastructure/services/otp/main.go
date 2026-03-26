@@ -13,17 +13,18 @@ import (
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 )
 
 const (
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/otp"
-	otpTTL      = 1 * time.Hour
+	otpTTL      = 15 * time.Minute
 )
 
 type repository interface {
 	CreateOTP(ctx context.Context, input *domain.OTP) error
-	GetOTPByCodeAndUser(ctx context.Context, code string, user int64, purpose dto.OTPPurpose) (*domain.OTP, error)
-	RevokeOTP(ctx context.Context, code string) error
+	GetOTPByCodeAndUser(ctx context.Context, code, user string, purpose dto.OTPPurpose) (*domain.OTP, error)
+	RevokeAllOTPsForUser(ctx context.Context, user, purpose string) error
 }
 
 // Provider encapsulates an OTP provider.
@@ -41,7 +42,7 @@ func New(repo repository) *Provider {
 }
 
 // GenerateOTP returns a 6-digit OTP string and nil error on success.
-func (p *Provider) GenerateOTP(ctx context.Context, userID int64, purpose dto.OTPPurpose) (string, error) {
+func (p *Provider) GenerateOTP(ctx context.Context, userID string, purpose dto.OTPPurpose) (string, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GenerateOTP")
 	defer span.End()
 
@@ -60,10 +61,10 @@ func (p *Provider) GenerateOTP(ctx context.Context, userID int64, purpose dto.OT
 	}
 
 	err := p.repo.CreateOTP(ctx, &domain.OTP{
-		Code:      b.String(),
+		Code:      helpers.HashSecret(b.String()),
 		ExpiresAt: time.Now().Add(otpTTL),
-		Valid:     true,
-		User:      userID,
+		Revoked:   false,
+		PublicID:  userID,
 		Purpose:   purpose,
 	})
 	if err != nil {
@@ -74,7 +75,7 @@ func (p *Provider) GenerateOTP(ctx context.Context, userID int64, purpose dto.OT
 }
 
 // GetOTPByCodeAndUserID returns a *[domain.OTP] that matches the code, userID and purpose.
-func (p *Provider) GetOTPByCodeAndUserID(ctx context.Context, code string, userID int64, purpose dto.OTPPurpose) (*domain.OTP, error) {
+func (p *Provider) GetOTPByCodeAndUserID(ctx context.Context, code, userID string, purpose dto.OTPPurpose) (*domain.OTP, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetOTPByCodeAndUserID")
 	defer span.End()
 
@@ -83,23 +84,13 @@ func (p *Provider) GetOTPByCodeAndUserID(ctx context.Context, code string, userI
 		return nil, err
 	}
 
-	if res == nil {
-		return nil, nil
-	}
-
-	return &domain.OTP{
-		User:      res.User,
-		Code:      res.Code,
-		ExpiresAt: res.ExpiresAt,
-		Valid:     res.Valid,
-		Purpose:   res.Purpose,
-	}, nil
+	return res, nil
 }
 
-// MarkOTPAsUsed returns nil on success.
-func (p *Provider) MarkOTPAsUsed(ctx context.Context, code string) error {
-	ctx, span := telemetry.Trace(ctx, packageName, "RevokeOTP")
+// RevokeAllOTPsForUser returns nil on success.
+func (p *Provider) RevokeAllOTPsForUser(ctx context.Context, user string, purpose dto.OTPPurpose) error {
+	ctx, span := telemetry.Trace(ctx, packageName, "RevokeAllOTPsForUser")
 	defer span.End()
 
-	return p.repo.RevokeOTP(ctx, code)
+	return p.repo.RevokeAllOTPsForUser(ctx, user, purpose.String())
 }

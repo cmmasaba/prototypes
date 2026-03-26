@@ -5,7 +5,7 @@ import "time"
 
 type EmailPasswordUserInput struct {
 	Email    string `json:"email"    validate:"required"`
-	Password string `json:"password" validate:"required"` // nolint: gosec
+	Password string `json:"password" validate:"required,min=8,max=128"` // nolint: gosec
 }
 
 type User struct {
@@ -15,11 +15,16 @@ type User struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type OTPRequiredResponse struct {
+	User   User   `json:"user"`
+	Status string `json:"status"`
+}
+
 type AuthResponse struct {
 	User         User   `json:"user"`
-	AccessToken  string `json:"access_token"`  // nolint: gosec
-	RefreshToken string `json:"refresh_token"` // nolint: gosec
-	ExpiresIn    int64  `json:"expires_in"`
+	AccessToken  string `json:"access_token,omitempty"`  // nolint: gosec
+	RefreshToken string `json:"refresh_token,omitempty"` // nolint: gosec
+	ExpiresIn    int64  `json:"expires_in,omitempty"`
 }
 
 type ValidatePasswordInput struct {
@@ -51,11 +56,12 @@ type RefreshAccessTokenInput struct {
 }
 
 type RefreshAccessTokenResponse struct {
-	AccessToken string `json:"access_token"` // nolint: gosec
-	ExpiresIn   int64  `json:"expires_in"`
+	AccessToken  string `json:"access_token"`  // nolint: gosec
+	RefreshToken string `json:"refresh_token"` // nolint: gosec
+	ExpiresIn    int64  `json:"expires_in"`
 }
 
 type VerifyOTPInput struct {
 	Purpose OTPPurpose `json:"purpose" validate:"required"`
-	Value   string `json:"value" validate:"required"`
+	Value   string     `json:"value" validate:"required"`
 }
