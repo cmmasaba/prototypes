@@ -35,10 +35,10 @@ func TestHIBP_CheckPasswordIsBreached(t *testing.T) {
 			name:     "happy case: password is in breach",
 			password: "collins",
 			setup: func() args {
-				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					w.Header().Set("Content-Type", "text/plain")
-					w.Write([]byte(strings.Join(response, "\r\n")))
+					w.Write([]byte(strings.Join(response, "\r\n"))) //nolint: errcheck
 				}))
 
 				return args{server: server, path: "/range"}
@@ -50,10 +50,10 @@ func TestHIBP_CheckPasswordIsBreached(t *testing.T) {
 			name:     "happy case: password is not in breach",
 			password: "collins",
 			setup: func() args {
-				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.WriteHeader(http.StatusOK)
 					w.Header().Set("Content-Type", "text/plain")
-					w.Write([]byte(strings.Join([]string{
+					w.Write([]byte(strings.Join([]string{ //nolint: errcheck
 						"00053EB46174159B02663FE71F23794404E:5",
 						"00259EE48BC504318E9500D811D1E1E5E2B:66",
 						"004181220B092B49B51A26546018E1505D9:1",

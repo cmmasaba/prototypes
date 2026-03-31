@@ -42,6 +42,8 @@ const getClicksByLinkIDAndClickedAt = `-- name: GetClicksByLinkIDAndClickedAt :m
 SELECT id, link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city, created_at FROM clicks
 WHERE
 	link_id = $1 AND clicked_at = $2
+ORDER BY clicked_at
+LIMIT 50
 `
 
 type GetClicksByLinkIDAndClickedAtParams struct {
@@ -86,6 +88,8 @@ const getClicksByLinkIDAndCountry = `-- name: GetClicksByLinkIDAndCountry :many
 SELECT id, link_id, clicked_at, ip_hash, referrer, user_agent, device_type, browser, os, country, city, created_at FROM clicks
 WHERE
 	link_id= $1 AND country = $2
+ORDER BY clicked_at
+LIMIT 50
 `
 
 type GetClicksByLinkIDAndCountryParams struct {
@@ -130,6 +134,8 @@ const getExpiredShortLinkByUserID = `-- name: GetExpiredShortLinkByUserID :many
 SELECT id, user_id, short_code, original_url, ownership_token FROM links
 WHERE
 	user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
+ORDER BY created_at
+LIMIT 50
 `
 
 type GetExpiredShortLinkByUserIDRow struct {
@@ -421,9 +427,9 @@ func (q *Queries) SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Cli
 
 const saveRefreshToken = `-- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token, expires_at, revoked
+	user_id, token, expires_at, revoked, created_at
 ) VALUES (
-	$1, $2, $3, $4
+	$1, $2, $3, $4, $5
 )
 `
 
@@ -432,6 +438,7 @@ type SaveRefreshTokenParams struct {
 	Token     string
 	ExpiresAt pgtype.Timestamptz
 	Revoked   bool
+	CreatedAt pgtype.Timestamptz
 }
 
 func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error {
@@ -440,6 +447,7 @@ func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenPara
 		arg.Token,
 		arg.ExpiresAt,
 		arg.Revoked,
+		arg.CreatedAt,
 	)
 	return err
 }

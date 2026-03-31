@@ -271,7 +271,7 @@ func (u *UsecaseImpl) RefreshAccessToken(ctx context.Context, refreshToken strin
 		return nil, ErrInvalidToken
 	}
 
-	if time.Now().After(token.ExpireAt) {
+	if time.Now().After(token.ExpiresAt) {
 		return nil, ErrExpiredToken
 	}
 
@@ -500,10 +500,11 @@ func (u *UsecaseImpl) generateAuthTokens(ctx context.Context, user *domain.User)
 	}
 
 	err = u.repo.SaveRefreshToken(ctx, domain.RefreshToken{
-		UserID:   user.ID,
-		Token:    helpers.HashSecret(refreshTokenString),
-		ExpireAt: time.Now().Add(refreshTokenTTL),
-		Revoked:  false,
+		UserID:    user.ID,
+		Token:     helpers.HashSecret(refreshTokenString),
+		CreatedAt: now,
+		ExpiresAt: now.Add(refreshTokenTTL),
+		Revoked:   false,
 	})
 	if err != nil {
 		slog.ErrorContext(ctx, "save refresh token failed", "err", err)

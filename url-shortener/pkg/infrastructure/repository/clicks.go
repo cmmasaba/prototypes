@@ -2,18 +2,16 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository/sqlc"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// CreateClickData returns a *[domain.Click] created from the provided data.
-func (r *Repository) CreateClickData(ctx context.Context, data domain.Click) (*domain.Click, error) {
+// CreateClick returns a *[domain.Click] created from the provided data.
+func (r *Repository) CreateClick(ctx context.Context, data domain.Click) (*domain.Click, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateClickData")
 	defer span.End()
 
@@ -64,13 +62,13 @@ func (r *Repository) GetClicksByLinkIDAndClickedAt(
 		ClickedAt: pgtype.Timestamptz{Time: clickedAt, Valid: true},
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-
 		telemetry.RecordError(span, err)
 
 		return nil, err
+	}
+
+	if result == nil {
+		return nil, ErrNotFound
 	}
 
 	var clicks []*domain.Click
@@ -108,13 +106,13 @@ func (r *Repository) GetClicksByLinkIDAndCountry(
 		Country: stringToPgtypeText(country),
 	})
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotFound
-		}
-
 		telemetry.RecordError(span, err)
 
 		return nil, err
+	}
+
+	if result == nil {
+		return nil, ErrNotFound
 	}
 
 	var clicks []*domain.Click

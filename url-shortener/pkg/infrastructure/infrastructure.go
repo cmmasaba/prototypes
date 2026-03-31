@@ -2,8 +2,10 @@
 package infrastructure
 
 import (
+	"fmt"
 	"log/slog"
 
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/hibp"
 	email "github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/services/mail"
@@ -20,7 +22,15 @@ type Infrastructure struct {
 }
 
 func New() (*Infrastructure, error) {
-	database, err := repository.New()
+	user := helpers.MustGetEnvVar("POSTGRES_USER")
+	password := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
+	host := helpers.MustGetEnvVar("POSTGRES_HOST")
+	port := helpers.MustGetEnvVar("POSTGRES_PORT")
+	sslmode := helpers.MustGetEnvVar("POSTGRES_SSLMODE")
+	db := helpers.MustGetEnvVar("POSTGRES_DB")
+	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=%s", user, password, host, port, db, sslmode)
+
+	database, err := repository.New(connString)
 	if err != nil {
 		slog.Error("initialize db repository failed", "err", err)
 

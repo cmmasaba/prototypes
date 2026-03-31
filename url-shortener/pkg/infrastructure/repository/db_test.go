@@ -1,33 +1,75 @@
 package repository
 
 import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
-func TestNewRepository(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantErr bool
-	}{
-		{
-			name:    "happy case: successfully connect to database",
-			wantErr: false,
-		},
+var testRepository *Repository
+
+func TestMain(m *testing.M) {
+	ctx := context.Background()
+	dbName := helpers.MustGetEnvVar("POSTGRES_DB")
+	dbUser := helpers.MustGetEnvVar("POSTGRES_USER")
+	dbPassword := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
+	sslmode := fmt.Sprintf("sslmode=%s", helpers.MustGetEnvVar("POSTGRES_SSLMODE"))
+
+	postgresCtr, err := postgres.Run(
+		ctx,
+		"postgres:18-alpine",
+		postgres.WithDatabase(dbName),
+		postgres.WithUsername(dbUser),
+		postgres.WithPassword(dbPassword),
+		postgres.BasicWaitStrategies(),
+		postgres.WithOrderedInitScripts(
+			filepath.Join("..", "..", "..", "db", "migrations", "000001_initial.up.sql"),
+			filepath.Join("test_config", "test_data.sql"),
+		),
+		postgres.WithSQLDriver("pgx"),
+	)
+
+	cleanup := func() {
+		if err := testcontainers.TerminateContainer(postgresCtr); err != nil {
+			slog.Error("failed to terminate container", "err", err)
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r, err := New()
+	if err != nil {
+		slog.Error("failed to start postgres container", "err", err)
+		cleanup()
 
-			if (err != nil) != tt.wantErr {
-				t.Errorf("TestNewRepository got %v, want %v", err, tt.wantErr)
-			}
-
-			if tt.name == "happy case: successfully connect to database" {
-				assert.NotNilf(t, r, "expected non-nil repository")
-			}
-		})
+		return
 	}
+
+	connString, err := postgresCtr.ConnectionString(ctx, sslmode)
+	if err != nil {
+		slog.Error("failed to get db connection string", "err", err)
+		cleanup()
+
+		return
+	}
+
+	testRepository, err = New(connString)
+	if err != nil {
+		slog.Error("failed to initialize repository", "err", err)
+		cleanup()
+
+		return
+	}
+
+	testRepository.PingDB(context.Background())
+
+	statusCode := m.Run()
+
+	cleanup()
+
+	os.Exit(statusCode)
 }

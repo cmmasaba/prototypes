@@ -22,16 +22,17 @@ CREATE UNIQUE INDEX idx_users_public_id ON users(public_id);
 CREATE TABLE IF NOT EXISTS links (
 	id BIGSERIAL PRIMARY KEY,
 	user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-	short_code VARCHAR(50) UNIQUE NOT NULL,
+	short_code VARCHAR(50) NOT NULL,
 	original_url TEXT NOT NULL,
 	ownership_token VARCHAR(64) NOT NULL,
 	created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 	expires_at TIMESTAMPTZ NULL,
 	active BOOLEAN NOT NULL DEFAULT TRUE
 );
-CREATE INDEX idx_links_ownership_token ON links(ownership_token) WHERE expires_at IS NOT NULL;
-CREATE INDEX idx_links_user_id ON links(user_id) WHERE expires_at IS NOT NULL;
-CREATE INDEX idx_links_clicked_at ON links(clicked_at);
+CREATE INDEX idx_links_ownership_token ON links(ownership_token);
+CREATE INDEX idx_links_user_id ON links(user_id);
+CREATE INDEX idx_links_expires_at ON links(expires_at);
+CREATE INDEX id_links_short_code ON links(short_code);
 
 -- clicks table
 CREATE TABLE IF NOT EXISTS clicks (

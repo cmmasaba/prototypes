@@ -1,70 +1,77 @@
 package repository
 
 import (
-	"context"
-	"reflect"
 	"testing"
 	"time"
 
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 )
 
-func TestRepository_GetClicksByLinkIDAndClickedAt(t *testing.T) {
-	tests := []struct {
-		name      string
-		linkID    int64
-		clickedAt time.Time
-		want      []*domain.Click
-		wantErr   bool
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r, err := New()
-			if err != nil {
-				t.Fatalf("could not construct receiver type: %v", err)
-			}
+func TestRepository_CreateClick(t *testing.T) {
+	county := "KE"
 
-			got, gotErr := r.GetClicksByLinkIDAndClickedAt(context.Background(), tt.linkID, tt.clickedAt)
-			if (gotErr != nil) != tt.wantErr {
-				t.Errorf("GetClicksByLinkIDAndClickedAt() err = %v wantErr = %v", gotErr, tt.wantErr)
-
-				return
-			}
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetClicksByLinkIDAndClickedAt() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestRepository_CreateClickData(t *testing.T) {
 	tests := []struct {
 		name    string
-		data    domain.Click
-		want    *domain.Click
+		input   domain.Click
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "happy case: create click successfully",
+			input: domain.Click{
+				LinkID:    1,
+				ClickedAt: time.Date(2025, 0o2, 15, 14, 45, 45, 78, time.UTC),
+				Country:   &county,
+			},
+			wantErr: false,
+		},
+		{
+			name: "sad case: create click failed",
+			input: domain.Click{
+				LinkID:    100,
+				ClickedAt: time.Now(),
+			},
+			wantErr: true,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := New()
-			if err != nil {
-				t.Fatalf("could not construct receiver type: %v", err)
-			}
-
-			got, gotErr := r.CreateClickData(context.Background(), tt.data)
+			_, gotErr := testRepository.CreateClick(t.Context(), tt.input)
 			if (gotErr != nil) != tt.wantErr {
 				t.Errorf("CreateClickData() err = %v wantErr = %v", gotErr, tt.wantErr)
 
 				return
 			}
+		})
+	}
+}
 
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("CreateClickData() = %v, want %v", got, tt.want)
+func TestRepository_GetClicksByLinkIDAndClickedAt(t *testing.T) {
+	tests := []struct {
+		name      string
+		linkID    int64
+		clickedAt time.Time
+		wantErr   bool
+	}{
+		{
+			name:      "happy case: get click by link id and clickedat successfully",
+			linkID:    1,
+			clickedAt: time.Date(2025, 0o2, 15, 14, 45, 45, 78, time.UTC),
+			wantErr:   false,
+		},
+		{
+			name:      "sad case: get click by link id and clickedat failed",
+			linkID:    100,
+			clickedAt: time.Now(),
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, gotErr := testRepository.GetClicksByLinkIDAndClickedAt(t.Context(), tt.linkID, tt.clickedAt)
+			if (gotErr != nil) != tt.wantErr {
+				t.Errorf("GetClicksByLinkIDAndClickedAt() err = %v wantErr = %v", gotErr, tt.wantErr)
 
 				return
 			}
@@ -73,31 +80,33 @@ func TestRepository_CreateClickData(t *testing.T) {
 }
 
 func TestRepository_GetClicksByLinkIDAndCountry(t *testing.T) {
+	country := "KE"
+
 	tests := []struct {
 		name    string
 		linkID  int64
 		country *string
-		want    []*domain.Click
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "happy case: get click by ink id and country successful",
+			linkID:  1,
+			country: &country,
+			wantErr: false,
+		},
+		{
+			name:    "sad case: get click by ink id and country failed",
+			linkID:  100,
+			country: &country,
+			wantErr: true,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := New()
-			if err != nil {
-				t.Fatalf("could not construct receiver type: %v", err)
-			}
-
-			got, gotErr := r.GetClicksByLinkIDAndCountry(context.Background(), tt.linkID, tt.country)
+			_, gotErr := testRepository.GetClicksByLinkIDAndCountry(t.Context(), tt.linkID, tt.country)
 			if (gotErr != nil) != tt.wantErr {
 				t.Errorf("GetClicksByLinkIDAndCountry() err = %v wantErr = %v", gotErr, tt.wantErr)
-
-				return
-			}
-
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("GetClicksByLinkIDAndCountry() = %v, want %v", got, tt.want)
 
 				return
 			}

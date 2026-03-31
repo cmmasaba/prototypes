@@ -50,9 +50,9 @@ RETURNING *;
 
 -- name: SaveRefreshToken :exec
 INSERT INTO refresh_tokens (
-	user_id, token, expires_at, revoked
+	user_id, token, expires_at, revoked, created_at
 ) VALUES (
-	$1, $2, $3, $4
+	$1, $2, $3, $4, $5
 );
 
 -- name: GetUserByEmail :one

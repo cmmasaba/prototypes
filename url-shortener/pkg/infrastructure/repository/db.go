@@ -38,15 +38,7 @@ type Repository struct {
 }
 
 // New returns a *[Repository] built from the passed connection string.
-func New() (*Repository, error) {
-	user := helpers.MustGetEnvVar("POSTGRES_USER")
-	password := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
-	host := helpers.MustGetEnvVar("POSTGRES_HOST")
-	port := helpers.MustGetEnvVar("POSTGRES_PORT")
-	sslmode := helpers.MustGetEnvVar("POSTGRES_SSLMODE")
-	db := helpers.MustGetEnvVar("POSTGRES_DB")
-	connString := fmt.Sprintf("user=%s password=%s host=%s port=%s dbname=%s sslmode=%s", user, password, host, port, db, sslmode)
-
+func New(connString string) (*Repository, error) {
 	dbConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pgxpool config: %w", err)

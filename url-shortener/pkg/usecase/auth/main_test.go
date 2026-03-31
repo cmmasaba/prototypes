@@ -172,7 +172,7 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 		},
 		{
 			name: "sad case: password is breached",
-			setup: func(repo *mocks.Mockrepo, otp *mocks.Mockotp, tasks *mocks.MockbackgroundTasks, hibp *mocks.Mockhibp) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockotp, _ *mocks.MockbackgroundTasks, hibp *mocks.Mockhibp) args {
 				ctx := context.Background()
 				email := gofakeit.Email()
 				password := gofakeit.Password(true, true, true, true, false, 10)
@@ -633,9 +633,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Now().Add(3 * time.Minute),
-					Revoked:  false,
+					UserID:    1,
+					ExpiresAt: time.Now().Add(3 * time.Minute),
+					Revoked:   false,
 				}, nil)
 				repo.EXPECT().GetUserByID(mock.Anything, mock.Anything).Return(&domain.User{
 					ID:       1,
@@ -665,9 +665,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Now().Add(3 * time.Minute),
-					Revoked:  true,
+					UserID:    1,
+					ExpiresAt: time.Now().Add(3 * time.Minute),
+					Revoked:   true,
 				}, nil)
 
 				return args{ctx: ctx, refreshToken: gofakeit.Name()}
@@ -680,9 +680,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Date(2026, 0o1, 0o1, 11, 30, 23, 46, time.UTC),
-					Revoked:  false,
+					UserID:    1,
+					ExpiresAt: time.Date(2026, 0o1, 0o1, 11, 30, 23, 46, time.UTC),
+					Revoked:   false,
 				}, nil)
 
 				return args{ctx: ctx, refreshToken: gofakeit.Name()}
@@ -695,9 +695,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Now().Add(3 * time.Minute),
-					Revoked:  false,
+					UserID:    1,
+					ExpiresAt: time.Now().Add(3 * time.Minute),
+					Revoked:   false,
 				}, nil)
 				repo.EXPECT().GetUserByID(mock.Anything, mock.Anything).Return(nil, errMsg)
 
@@ -711,9 +711,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Now().Add(3 * time.Minute),
-					Revoked:  false,
+					UserID:    1,
+					ExpiresAt: time.Now().Add(3 * time.Minute),
+					Revoked:   false,
 				}, nil)
 				repo.EXPECT().GetUserByID(mock.Anything, mock.Anything).Return(&domain.User{
 					ID:       1,
@@ -731,9 +731,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:   1,
-					ExpireAt: time.Now().Add(3 * time.Minute),
-					Revoked:  false,
+					UserID:    1,
+					ExpiresAt: time.Now().Add(3 * time.Minute),
+					Revoked:   false,
 				}, nil)
 				repo.EXPECT().GetUserByID(mock.Anything, mock.Anything).Return(&domain.User{
 					ID:       1,
@@ -932,7 +932,7 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 		{
 			name:    "sad case: get user by public id failed",
 			wantErr: true,
-			setup: func(repo *mocks.Mockrepo, otp *mocks.Mockotp) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockotp) args {
 				publicID := gofakeit.UUID()
 				ctx := helpers.SetUserIDCtx(context.Background(), publicID)
 
@@ -944,7 +944,7 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 		{
 			name:    "sad case: user id not found in context",
 			wantErr: true,
-			setup: func(repo *mocks.Mockrepo, otp *mocks.Mockotp) args {
+			setup: func(_ *mocks.Mockrepo, _ *mocks.Mockotp) args {
 				return args{ctx: context.Background(), input: &dto.VerifyOTPInput{Purpose: dto.Login, Value: "000000"}}
 			},
 		},

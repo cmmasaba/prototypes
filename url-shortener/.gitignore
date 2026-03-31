@@ -5,3 +5,4 @@ env.sh
 *.key
 .vscode/
 SPEC.md
+init.sh

@@ -18,8 +18,9 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 	err := r.db.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
 		UserID:    input.UserID,
 		Token:     input.Token,
-		ExpiresAt: timeToTimestamptz(&input.ExpireAt),
+		ExpiresAt: timeToTimestamptz(&input.ExpiresAt),
 		Revoked:   input.Revoked,
+		CreatedAt: timeToTimestamptz(&input.CreatedAt),
 	})
 	if err != nil {
 		telemetry.RecordError(span, err)
@@ -50,8 +51,8 @@ func (r *Repository) GetRefreshTokenByTokenHash(ctx context.Context, token strin
 		ID:        res.ID,
 		UserID:    res.UserID,
 		Token:     res.Token,
-		ExpireAt:  res.ExpiresAt.Time,
-		CreatedAt: &res.CreatedAt.Time,
+		ExpiresAt: *timestamptzToTime(res.ExpiresAt),
+		CreatedAt: *timestamptzToTime(res.CreatedAt),
 		Revoked:   res.Revoked,
 	}, nil
 }

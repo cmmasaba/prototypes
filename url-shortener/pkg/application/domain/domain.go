@@ -46,8 +46,8 @@ type RefreshToken struct {
 	UserID    int64
 	Token     string
 	Revoked   bool
-	ExpireAt  time.Time
-	CreatedAt *time.Time
+	ExpiresAt time.Time
+	CreatedAt time.Time
 }
 
 type OTP struct {
