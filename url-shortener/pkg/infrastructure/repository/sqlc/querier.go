@@ -20,9 +20,10 @@ type Querier interface {
 	GetShortLinkByCode(ctx context.Context, shortCode string) (GetShortLinkByCodeRow, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
-	GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDParams) (User, error)
+	GetUserByOauthProviderAndOauthID(ctx context.Context, arg GetUserByOauthProviderAndOauthIDParams) (User, error)
 	GetUserByPublicID(ctx context.Context, publicID pgtype.UUID) (User, error)
 	RevokeAllOTPsForUser(ctx context.Context, arg RevokeAllOTPsForUserParams) error
+	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
 	RevokeRefreshToken(ctx context.Context, token string) error
 	SaveNewClick(ctx context.Context, arg SaveNewClickParams) (Click, error)
 	SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenParams) error

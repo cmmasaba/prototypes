@@ -16,10 +16,7 @@ type ctxKey string
 
 const userIDKey ctxKey = "UserID"
 
-var (
-	validate   = validator.New()
-	hashSecret = MustGetEnvVar("HMAC_HASH_SECRET")
-)
+var validate = validator.New()
 
 // Validate returns nil if validation for the struct's exposed fields passes.
 func Validate(v any) error {
@@ -50,6 +47,8 @@ func MustGetEnvVar(name string) string {
 
 // HashSecret returns a sha256 hash of the secret.
 func HashSecret(secret string) string {
+	hashSecret := MustGetEnvVar("HMAC_HASH_SECRET")
+
 	hasher := hmac.New(sha256.New, []byte(hashSecret))
 
 	hasher.Write([]byte(secret))

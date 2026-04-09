@@ -21,6 +21,14 @@ const (
 
 var ErrInvalidRequestBody = errors.New("invalid request body")
 
+const authModeHeader = "X-Auth-Mode"
+
+// useCookieAuth returns true if the client wants cookie-based authentication.
+// Cookie mode is used when the client sends the "X-Auth-Mode: cookie" header.
+func useCookieAuth(r *http.Request) bool {
+	return r.Header.Get(authModeHeader) == "cookie"
+}
+
 type usecases interface {
 	HealthCheck(ctx context.Context) map[string]bool
 	CreateUserEmailPassword(ctx context.Context, input *dto.EmailPasswordUserInput) (*dto.OTPRequiredResponse, error)
@@ -28,17 +36,20 @@ type usecases interface {
 	Login(ctx context.Context, input *dto.LoginInput) (*dto.OTPRequiredResponse, error)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (*dto.RefreshAccessTokenResponse, error)
 	VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (*dto.AuthResponse, error)
+	OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, error)
+	InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error)
+	Logout(ctx context.Context) error
 }
 
 type Handlers struct {
-	uc usecases
-	sm *scs.SessionManager
+	usecases usecases
+	session  *scs.SessionManager
 }
 
-func New(uc usecases, sm *scs.SessionManager) *Handlers {
+func New(usecases usecases, session *scs.SessionManager) *Handlers {
 	return &Handlers{
-		uc: uc,
-		sm: sm,
+		usecases: usecases,
+		session:  session,
 	}
 }
 
@@ -74,7 +85,7 @@ func (h *Handlers) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// do checks for all infra services i.e cache, database, and other critical components.
-	resp := h.uc.HealthCheck(ctx)
+	resp := h.usecases.HealthCheck(ctx)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -94,7 +105,7 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	resp, err := h.uc.CreateUserEmailPassword(ctx, input)
+	resp, err := h.usecases.CreateUserEmailPassword(ctx, input)
 	if err != nil {
 		switch {
 		case errors.Is(err, auth.ErrUserWithEmailExists):
@@ -112,7 +123,7 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	h.sm.Put(ctx, "user_id", resp.User.PublicID)
+	h.session.Put(ctx, "user_id", resp.User.PublicID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -133,7 +144,7 @@ func (h *Handlers) ValidatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = h.uc.ValidatePasswordStrength(ctx, input)
+	ok = h.usecases.ValidatePasswordStrength(ctx, input)
 	resp := map[string]bool{
 		"passwordStrength": ok,
 	}
@@ -156,7 +167,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.uc.Login(ctx, input)
+	resp, err := h.usecases.Login(ctx, input)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCredentials) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -167,7 +178,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.sm.Put(ctx, "user_id", resp.User.PublicID)
+	h.session.Put(ctx, "user_id", resp.User.PublicID)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -178,17 +189,31 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// RefreshAccessToken refreshes access tokens.
+// RefreshAccessToken refreshes access token.
+//
+// It reads the refresh token from the refresh_token cookie first, falling back to the request body.
 func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "RefreshAccessToken")
 	defer span.End()
 
-	input, ok := decodeAndValidate[dto.RefreshAccessTokenInput](ctx, r, w)
-	if !ok {
-		return
+	var refreshToken string
+
+	// Try cookie first (browser clients)
+	if cookie, err := r.Cookie(refreshTokenCookie); err == nil {
+		refreshToken = cookie.Value
 	}
 
-	resp, err := h.uc.RefreshAccessToken(ctx, input.Token)
+	// Fall back to request body (API clients)
+	if refreshToken == "" {
+		input, ok := decodeAndValidate[dto.RefreshAccessTokenInput](ctx, r, w)
+		if !ok {
+			return
+		}
+
+		refreshToken = input.Token
+	}
+
+	resp, err := h.usecases.RefreshAccessToken(ctx, refreshToken)
 	if err != nil {
 		if errors.Is(err, auth.ErrExpiredToken) || errors.Is(err, auth.ErrInvalidToken) {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -197,6 +222,13 @@ func (h *Handlers) RefreshAccessToken(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
+	}
+
+	if useCookieAuth(r) {
+		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+
+		resp.AccessToken = ""
+		resp.RefreshToken = ""
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -213,7 +245,7 @@ func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "VerifyOTP")
 	defer span.End()
 
-	userID := h.sm.GetString(ctx, "user_id")
+	userID := h.session.GetString(ctx, "user_id")
 	if userID == "" {
 		http.Error(w, "session expired or invalid", http.StatusUnauthorized)
 
@@ -227,9 +259,10 @@ func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := h.uc.VerifyOTP(ctx, input)
+	resp, err := h.usecases.VerifyOTP(ctx, input)
 	if err != nil {
-		if errors.Is(err, auth.ErrExpiredOTPCode) || errors.Is(err, auth.ErrIncorrectOTP) || errors.Is(err, auth.ErrInvalidOTPCode) {
+		if errors.Is(err, auth.ErrExpiredOTPCode) || errors.Is(err, auth.ErrIncorrectOTP) ||
+			errors.Is(err, auth.ErrInvalidOTPCode) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, "internal server error", http.StatusInternalServerError)
@@ -238,8 +271,16 @@ func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.sm.Destroy(ctx); err != nil {
+	err = h.session.Destroy(ctx)
+	if err != nil {
 		slog.ErrorContext(ctx, "destroy session failed", "err", err)
+	}
+
+	if useCookieAuth(r) {
+		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+
+		resp.AccessToken = ""
+		resp.RefreshToken = ""
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -247,6 +288,114 @@ func (h *Handlers) VerifyOTP(w http.ResponseWriter, r *http.Request) {
 
 	err = json.NewEncoder(w).Encode(resp)
 	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// InitGoogleOAuth initiates the Google OAuth flow and redirects the user to the consent page.
+func (h *Handlers) InitGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "InitGoogleOAuth")
+	defer span.End()
+
+	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGoogle)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+// GoogleOAuthCallback handles the OAuth callback from Google.
+func (h *Handlers) GoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "GoogleOAuthCallback")
+	defer span.End()
+
+	resp, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	if useCookieAuth(r) {
+		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+
+		resp.AccessToken = ""
+		resp.RefreshToken = ""
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// InitGithubOAuth initiates the Google OAuth flow and redirects the user to the consent page.
+func (h *Handlers) InitGithubOAuth(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "InitGithubOAuth")
+	defer span.End()
+
+	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGithub)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	http.Redirect(w, r, redirectURL, http.StatusFound)
+}
+
+// GithubOAuthCallback handles the OAuth callback from GitHub.
+func (h *Handlers) GithubOAuthCallback(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "GithubOAuthCallback")
+	defer span.End()
+
+	resp, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	if useCookieAuth(r) {
+		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+
+		resp.AccessToken = ""
+		resp.RefreshToken = ""
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		telemetry.RecordError(span, err)
+	}
+}
+
+// Logout revokes all refresh tokens for the user and clears auth cookies.
+func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "Logout")
+	defer span.End()
+
+	if err := h.usecases.Logout(ctx); err != nil {
+		slog.ErrorContext(ctx, "logout failed", "err", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	ClearAuthCookies(w)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(map[string]string{"status": "logged_out"}); err != nil {
 		telemetry.RecordError(span, err)
 	}
 }

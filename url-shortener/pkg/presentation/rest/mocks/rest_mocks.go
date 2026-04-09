@@ -159,6 +159,72 @@ func (_c *Mockusecases_HealthCheck_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// InitOAuthFlow provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error) {
+	ret := _mock.Called(ctx, provider)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InitOAuthFlow")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider) (string, error)); ok {
+		return returnFunc(ctx, provider)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider) string); ok {
+		r0 = returnFunc(ctx, provider)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.OAuthProvider) error); ok {
+		r1 = returnFunc(ctx, provider)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockusecases_InitOAuthFlow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InitOAuthFlow'
+type Mockusecases_InitOAuthFlow_Call struct {
+	*mock.Call
+}
+
+// InitOAuthFlow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - provider dto.OAuthProvider
+func (_e *Mockusecases_Expecter) InitOAuthFlow(ctx interface{}, provider interface{}) *Mockusecases_InitOAuthFlow_Call {
+	return &Mockusecases_InitOAuthFlow_Call{Call: _e.mock.On("InitOAuthFlow", ctx, provider)}
+}
+
+func (_c *Mockusecases_InitOAuthFlow_Call) Run(run func(ctx context.Context, provider dto.OAuthProvider)) *Mockusecases_InitOAuthFlow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 dto.OAuthProvider
+		if args[1] != nil {
+			arg1 = args[1].(dto.OAuthProvider)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_InitOAuthFlow_Call) Return(s string, err error) *Mockusecases_InitOAuthFlow_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Mockusecases_InitOAuthFlow_Call) RunAndReturn(run func(ctx context.Context, provider dto.OAuthProvider) (string, error)) *Mockusecases_InitOAuthFlow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Login provides a mock function for the type Mockusecases
 func (_mock *Mockusecases) Login(ctx context.Context, input *dto.LoginInput) (*dto.OTPRequiredResponse, error) {
 	ret := _mock.Called(ctx, input)
@@ -223,6 +289,131 @@ func (_c *Mockusecases_Login_Call) Return(oTPRequiredResponse *dto.OTPRequiredRe
 }
 
 func (_c *Mockusecases_Login_Call) RunAndReturn(run func(ctx context.Context, input *dto.LoginInput) (*dto.OTPRequiredResponse, error)) *Mockusecases_Login_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Logout provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) Logout(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Logout")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockusecases_Logout_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Logout'
+type Mockusecases_Logout_Call struct {
+	*mock.Call
+}
+
+// Logout is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Mockusecases_Expecter) Logout(ctx interface{}) *Mockusecases_Logout_Call {
+	return &Mockusecases_Logout_Call{Call: _e.mock.On("Logout", ctx)}
+}
+
+func (_c *Mockusecases_Logout_Call) Run(run func(ctx context.Context)) *Mockusecases_Logout_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_Logout_Call) Return(err error) *Mockusecases_Logout_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockusecases_Logout_Call) RunAndReturn(run func(ctx context.Context) error) *Mockusecases_Logout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// OAuthFlowCallback provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) OAuthFlowCallback(ctx context.Context, origin string, code string) (*dto.AuthResponse, error) {
+	ret := _mock.Called(ctx, origin, code)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OAuthFlowCallback")
+	}
+
+	var r0 *dto.AuthResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*dto.AuthResponse, error)); ok {
+		return returnFunc(ctx, origin, code)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *dto.AuthResponse); ok {
+		r0 = returnFunc(ctx, origin, code)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.AuthResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, origin, code)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockusecases_OAuthFlowCallback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OAuthFlowCallback'
+type Mockusecases_OAuthFlowCallback_Call struct {
+	*mock.Call
+}
+
+// OAuthFlowCallback is a helper method to define mock.On call
+//   - ctx context.Context
+//   - origin string
+//   - code string
+func (_e *Mockusecases_Expecter) OAuthFlowCallback(ctx interface{}, origin interface{}, code interface{}) *Mockusecases_OAuthFlowCallback_Call {
+	return &Mockusecases_OAuthFlowCallback_Call{Call: _e.mock.On("OAuthFlowCallback", ctx, origin, code)}
+}
+
+func (_c *Mockusecases_OAuthFlowCallback_Call) Run(run func(ctx context.Context, origin string, code string)) *Mockusecases_OAuthFlowCallback_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_OAuthFlowCallback_Call) Return(authResponse *dto.AuthResponse, err error) *Mockusecases_OAuthFlowCallback_Call {
+	_c.Call.Return(authResponse, err)
+	return _c
+}
+
+func (_c *Mockusecases_OAuthFlowCallback_Call) RunAndReturn(run func(ctx context.Context, origin string, code string) (*dto.AuthResponse, error)) *Mockusecases_OAuthFlowCallback_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -77,7 +77,7 @@ func TestRepository_GetUserByEmail(t *testing.T) {
 	}
 }
 
-func TestRepository_GetUserByOAuthID(t *testing.T) {
+func TestRepository_GetUserByOAuthProviderAndID(t *testing.T) {
 	knownID := "6aa8ecb7-51ad-4287-aa81-1cc738d9a81a"
 	unknownID := "2393ff66-3a97-41af-8d8c-559161313ee7"
 
@@ -102,7 +102,7 @@ func TestRepository_GetUserByOAuthID(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, gotErr := testRepository.GetUserByOAuthID(t.Context(), tt.oauthProvider, tt.oauthProviderID)
+			_, gotErr := testRepository.GetUserByOAuthProviderAndID(t.Context(), tt.oauthProvider, tt.oauthProviderID)
 			if (gotErr != nil) != tt.wantErr {
 				t.Errorf("GetUserByOAuthID() err = %v wantErr = %v", gotErr, tt.wantErr)
 

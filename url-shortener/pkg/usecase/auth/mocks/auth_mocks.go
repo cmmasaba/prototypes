@@ -6,6 +6,7 @@ package mocks
 
 import (
 	"context"
+	"time"
 
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
@@ -312,6 +313,80 @@ func (_c *Mockrepo_GetUserByID_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// GetUserByOAuthProviderAndID provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) GetUserByOAuthProviderAndID(ctx context.Context, oauthProvider string, oauthProviderID string) (*domain.User, error) {
+	ret := _mock.Called(ctx, oauthProvider, oauthProviderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetUserByOAuthProviderAndID")
+	}
+
+	var r0 *domain.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*domain.User, error)); ok {
+		return returnFunc(ctx, oauthProvider, oauthProviderID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *domain.User); ok {
+		r0 = returnFunc(ctx, oauthProvider, oauthProviderID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, oauthProvider, oauthProviderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockrepo_GetUserByOAuthProviderAndID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetUserByOAuthProviderAndID'
+type Mockrepo_GetUserByOAuthProviderAndID_Call struct {
+	*mock.Call
+}
+
+// GetUserByOAuthProviderAndID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - oauthProvider string
+//   - oauthProviderID string
+func (_e *Mockrepo_Expecter) GetUserByOAuthProviderAndID(ctx interface{}, oauthProvider interface{}, oauthProviderID interface{}) *Mockrepo_GetUserByOAuthProviderAndID_Call {
+	return &Mockrepo_GetUserByOAuthProviderAndID_Call{Call: _e.mock.On("GetUserByOAuthProviderAndID", ctx, oauthProvider, oauthProviderID)}
+}
+
+func (_c *Mockrepo_GetUserByOAuthProviderAndID_Call) Run(run func(ctx context.Context, oauthProvider string, oauthProviderID string)) *Mockrepo_GetUserByOAuthProviderAndID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_GetUserByOAuthProviderAndID_Call) Return(user *domain.User, err error) *Mockrepo_GetUserByOAuthProviderAndID_Call {
+	_c.Call.Return(user, err)
+	return _c
+}
+
+func (_c *Mockrepo_GetUserByOAuthProviderAndID_Call) RunAndReturn(run func(ctx context.Context, oauthProvider string, oauthProviderID string) (*domain.User, error)) *Mockrepo_GetUserByOAuthProviderAndID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetUserByPublicID provides a mock function for the type Mockrepo
 func (_mock *Mockrepo) GetUserByPublicID(ctx context.Context, publicID string) (*domain.User, error) {
 	ret := _mock.Called(ctx, publicID)
@@ -376,6 +451,63 @@ func (_c *Mockrepo_GetUserByPublicID_Call) Return(user *domain.User, err error) 
 }
 
 func (_c *Mockrepo_GetUserByPublicID_Call) RunAndReturn(run func(ctx context.Context, publicID string) (*domain.User, error)) *Mockrepo_GetUserByPublicID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RevokeAllRefreshTokensForUser provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RevokeAllRefreshTokensForUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockrepo_RevokeAllRefreshTokensForUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RevokeAllRefreshTokensForUser'
+type Mockrepo_RevokeAllRefreshTokensForUser_Call struct {
+	*mock.Call
+}
+
+// RevokeAllRefreshTokensForUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID int64
+func (_e *Mockrepo_Expecter) RevokeAllRefreshTokensForUser(ctx interface{}, userID interface{}) *Mockrepo_RevokeAllRefreshTokensForUser_Call {
+	return &Mockrepo_RevokeAllRefreshTokensForUser_Call{Call: _e.mock.On("RevokeAllRefreshTokensForUser", ctx, userID)}
+}
+
+func (_c *Mockrepo_RevokeAllRefreshTokensForUser_Call) Run(run func(ctx context.Context, userID int64)) *Mockrepo_RevokeAllRefreshTokensForUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_RevokeAllRefreshTokensForUser_Call) Return(err error) *Mockrepo_RevokeAllRefreshTokensForUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockrepo_RevokeAllRefreshTokensForUser_Call) RunAndReturn(run func(ctx context.Context, userID int64) error) *Mockrepo_RevokeAllRefreshTokensForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -915,6 +1047,170 @@ func (_c *MockbackgroundTasks_NewEmailDeliveryTask_Call) Return(err error) *Mock
 }
 
 func (_c *MockbackgroundTasks_NewEmailDeliveryTask_Call) RunAndReturn(run func(ctx context.Context, input tasks.EmailDeliveryPayload, priority tasks.Priority) error) *MockbackgroundTasks_NewEmailDeliveryTask_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewMockcache creates a new instance of Mockcache. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
+// The first argument is typically a *testing.T value.
+func NewMockcache(t interface {
+	mock.TestingT
+	Cleanup(func())
+}) *Mockcache {
+	mock := &Mockcache{}
+	mock.Mock.Test(t)
+
+	t.Cleanup(func() { mock.AssertExpectations(t) })
+
+	return mock
+}
+
+// Mockcache is an autogenerated mock type for the cache type
+type Mockcache struct {
+	mock.Mock
+}
+
+type Mockcache_Expecter struct {
+	mock *mock.Mock
+}
+
+func (_m *Mockcache) EXPECT() *Mockcache_Expecter {
+	return &Mockcache_Expecter{mock: &_m.Mock}
+}
+
+// Get provides a mock function for the type Mockcache
+func (_mock *Mockcache) Get(ctx context.Context, key string) ([]byte, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Get")
+	}
+
+	var r0 []byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]byte, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []byte); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]byte)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockcache_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
+type Mockcache_Get_Call struct {
+	*mock.Call
+}
+
+// Get is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *Mockcache_Expecter) Get(ctx interface{}, key interface{}) *Mockcache_Get_Call {
+	return &Mockcache_Get_Call{Call: _e.mock.On("Get", ctx, key)}
+}
+
+func (_c *Mockcache_Get_Call) Run(run func(ctx context.Context, key string)) *Mockcache_Get_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockcache_Get_Call) Return(bytes []byte, err error) *Mockcache_Get_Call {
+	_c.Call.Return(bytes, err)
+	return _c
+}
+
+func (_c *Mockcache_Get_Call) RunAndReturn(run func(ctx context.Context, key string) ([]byte, error)) *Mockcache_Get_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Set provides a mock function for the type Mockcache
+func (_mock *Mockcache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
+	ret := _mock.Called(ctx, key, value, expiration)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Set")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, any, time.Duration) error); ok {
+		r0 = returnFunc(ctx, key, value, expiration)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockcache_Set_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Set'
+type Mockcache_Set_Call struct {
+	*mock.Call
+}
+
+// Set is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - value any
+//   - expiration time.Duration
+func (_e *Mockcache_Expecter) Set(ctx interface{}, key interface{}, value interface{}, expiration interface{}) *Mockcache_Set_Call {
+	return &Mockcache_Set_Call{Call: _e.mock.On("Set", ctx, key, value, expiration)}
+}
+
+func (_c *Mockcache_Set_Call) Run(run func(ctx context.Context, key string, value any, expiration time.Duration)) *Mockcache_Set_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 any
+		if args[2] != nil {
+			arg2 = args[2].(any)
+		}
+		var arg3 time.Duration
+		if args[3] != nil {
+			arg3 = args[3].(time.Duration)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockcache_Set_Call) Return(err error) *Mockcache_Set_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockcache_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value any, expiration time.Duration) error) *Mockcache_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }

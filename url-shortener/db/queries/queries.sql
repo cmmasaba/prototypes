@@ -60,7 +60,7 @@ SELECT * FROM users
 WHERE
 	email = $1;
 
--- name: GetUserByOauthID :one
+-- name: GetUserByOauthProviderAndOauthID :one
 SELECT * FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2;
@@ -103,3 +103,6 @@ LIMIT 1;
 -- name: RevokeAllOTPsForUser :exec
 UPDATE otp SET revoked = TRUE
 WHERE user_public_id=$1 AND purpose=$2 AND revoked=FALSE;
+
+-- name: RevokeAllRefreshTokensForUser :exec
+UPDATE refresh_tokens SET revoked = TRUE WHERE user_id=$1;

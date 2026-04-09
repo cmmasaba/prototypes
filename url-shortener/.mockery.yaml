@@ -21,6 +21,7 @@ packages:
       hibp:
       backgroundTasks:
       otp:
+      cache:
   github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest:
     interfaces:
       usecases:

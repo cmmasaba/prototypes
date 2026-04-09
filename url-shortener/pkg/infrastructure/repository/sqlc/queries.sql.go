@@ -295,19 +295,19 @@ func (q *Queries) GetUserByID(ctx context.Context, id int64) (User, error) {
 	return i, err
 }
 
-const getUserByOauthID = `-- name: GetUserByOauthID :one
+const getUserByOauthProviderAndOauthID = `-- name: GetUserByOauthProviderAndOauthID :one
 SELECT id, public_id, email, password, oauth_provider, oauth_provider_id, created_at, deleted_at FROM users
 WHERE
 	oauth_provider = $1 AND oauth_provider_id = $2
 `
 
-type GetUserByOauthIDParams struct {
+type GetUserByOauthProviderAndOauthIDParams struct {
 	OauthProvider   pgtype.Text
 	OauthProviderID pgtype.Text
 }
 
-func (q *Queries) GetUserByOauthID(ctx context.Context, arg GetUserByOauthIDParams) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByOauthID, arg.OauthProvider, arg.OauthProviderID)
+func (q *Queries) GetUserByOauthProviderAndOauthID(ctx context.Context, arg GetUserByOauthProviderAndOauthIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByOauthProviderAndOauthID, arg.OauthProvider, arg.OauthProviderID)
 	var i User
 	err := row.Scan(
 		&i.ID,
@@ -356,6 +356,15 @@ type RevokeAllOTPsForUserParams struct {
 
 func (q *Queries) RevokeAllOTPsForUser(ctx context.Context, arg RevokeAllOTPsForUserParams) error {
 	_, err := q.db.Exec(ctx, revokeAllOTPsForUser, arg.UserPublicID, arg.Purpose)
+	return err
+}
+
+const revokeAllRefreshTokensForUser = `-- name: RevokeAllRefreshTokensForUser :exec
+UPDATE refresh_tokens SET revoked = TRUE WHERE user_id=$1
+`
+
+func (q *Queries) RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, revokeAllRefreshTokensForUser, userID)
 	return err
 }
 

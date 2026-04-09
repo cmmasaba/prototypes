@@ -45,11 +45,17 @@ format:
 	gofumpt -w .
 	golines -w --max-len=120 .
 
-# Run all tests
-.PHONY: test
-test:
-	@echo "==> Running tests..."
-	go test -timeout 30s -coverprofile=/tmp/coverage.out -v -race ./...
+# Run all unit tests
+.PHONY: unittest
+unittest:
+	@echo "==> Running unit tests..."
+	go test -timeout 30s -coverprofile=/tmp/coverage.out -v -race ./pkg/...
+
+# Run all integration tests
+.PHONY: integrationtests
+integrationtests:
+	@echo "==> Running integration tests..."
+	./env.sh && go test -tags integration -coverprofile=/tmp/coverage.out -v -count=1 -race ./tests/...
 
 # Start docker container
 .PHONY: compose

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -20,7 +19,6 @@ func TestMain(m *testing.M) {
 	dbName := helpers.MustGetEnvVar("POSTGRES_DB")
 	dbUser := helpers.MustGetEnvVar("POSTGRES_USER")
 	dbPassword := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
-	sslmode := fmt.Sprintf("sslmode=%s", helpers.MustGetEnvVar("POSTGRES_SSLMODE"))
 
 	postgresCtr, err := postgres.Run(
 		ctx,
@@ -38,7 +36,7 @@ func TestMain(m *testing.M) {
 
 	cleanup := func() {
 		if err := testcontainers.TerminateContainer(postgresCtr); err != nil {
-			slog.Error("failed to terminate container", "err", err)
+			slog.Error("failed to terminate postgres container", "err", err)
 		}
 	}
 
@@ -49,7 +47,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	connString, err := postgresCtr.ConnectionString(ctx, sslmode)
+	connString, err := postgresCtr.ConnectionString(ctx)
 	if err != nil {
 		slog.Error("failed to get db connection string", "err", err)
 		cleanup()

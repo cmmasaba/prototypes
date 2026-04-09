@@ -43,7 +43,12 @@ func (r *Repository) CreateOTP(ctx context.Context, input *domain.OTP) error {
 }
 
 // GetOTPByCodeAndUser returns *[domain.OTP] matching code, user and purpose.
-func (r *Repository) GetOTPByCodeAndUser(ctx context.Context, code string, user string, purpose dto.OTPPurpose) (*domain.OTP, error) {
+func (r *Repository) GetOTPByCodeAndUser(
+	ctx context.Context,
+	code string,
+	user string,
+	purpose dto.OTPPurpose,
+) (*domain.OTP, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetOTPByCodeAndUser")
 	defer span.End()
 

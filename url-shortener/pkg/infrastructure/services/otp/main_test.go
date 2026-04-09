@@ -84,11 +84,13 @@ func TestProvider_GetOTPByCodeAndUserID(t *testing.T) {
 				userID := gofakeit.UUID()
 				purpose := dto.Login
 
-				repo.EXPECT().GetOTPByCodeAndUser(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID: userID,
-					Code:     "000000",
-					Purpose:  purpose,
-				}, nil)
+				repo.EXPECT().
+					GetOTPByCodeAndUser(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID: userID,
+						Code:     "000000",
+						Purpose:  purpose,
+					}, nil)
 
 				return args{code: "000000", userID: userID, purpose: purpose}
 			},
@@ -100,7 +102,9 @@ func TestProvider_GetOTPByCodeAndUserID(t *testing.T) {
 				userID := gofakeit.UUID()
 				purpose := dto.Login
 
-				repo.EXPECT().GetOTPByCodeAndUser(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errMsg)
+				repo.EXPECT().
+					GetOTPByCodeAndUser(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, errMsg)
 
 				return args{code: "000000", userID: userID, purpose: purpose}
 			},

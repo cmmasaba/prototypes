@@ -61,18 +61,19 @@ func (r *Repository) GetUserByEmail(ctx context.Context, email string) (*domain.
 	}, nil
 }
 
-// GetUserByOAuthID returns a *[domain.User] matching the OAuth provider and provider ID.
-func (r *Repository) GetUserByOAuthID(
+// GetUserByOAuthProviderAndID returns a *[domain.User] matching the OAuth provider and provider ID.
+func (r *Repository) GetUserByOAuthProviderAndID(
 	ctx context.Context,
 	oauthProvider, oauthProviderID string,
 ) (*domain.User, error) {
-	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByOAuthID")
+	ctx, span := telemetry.Trace(ctx, packageName, "GetUserByOAuthProviderAndID")
 	defer span.End()
 
-	res, err := r.db.GetUserByOauthID(ctx, sqlc.GetUserByOauthIDParams{
-		OauthProvider:   stringToPgtypeText(&oauthProvider),
-		OauthProviderID: stringToPgtypeText(&oauthProviderID),
-	})
+	res, err := r.db.GetUserByOauthProviderAndOauthID(ctx,
+		sqlc.GetUserByOauthProviderAndOauthIDParams{
+			OauthProvider:   stringToPgtypeText(&oauthProvider),
+			OauthProviderID: stringToPgtypeText(&oauthProviderID),
+		})
 	if err != nil {
 		telemetry.RecordError(span, err)
 

@@ -32,7 +32,7 @@ type ValidatePasswordInput struct {
 }
 
 type LoginInput struct {
-	Email    string `json:"email" validate:"required"`
+	Email    string `json:"email"    validate:"required"`
 	Password string `json:"password" validate:"required"` // nolint: gosec
 }
 
@@ -56,12 +56,12 @@ type RefreshAccessTokenInput struct {
 }
 
 type RefreshAccessTokenResponse struct {
-	AccessToken  string `json:"access_token"`  // nolint: gosec
-	RefreshToken string `json:"refresh_token"` // nolint: gosec
+	AccessToken  string `json:"access_token,omitempty"`  // nolint: gosec
+	RefreshToken string `json:"refresh_token,omitempty"` // nolint: gosec
 	ExpiresIn    int64  `json:"expires_in"`
 }
 
 type VerifyOTPInput struct {
 	Purpose OTPPurpose `json:"purpose" validate:"required"`
-	Value   string     `json:"value" validate:"required"`
+	Value   string     `json:"value"   validate:"required"`
 }

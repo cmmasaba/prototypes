@@ -75,7 +75,11 @@ func (p *Provider) GenerateOTP(ctx context.Context, userID string, purpose dto.O
 }
 
 // GetOTPByCodeAndUserID returns a *[domain.OTP] that matches the code, userID and purpose.
-func (p *Provider) GetOTPByCodeAndUserID(ctx context.Context, code, userID string, purpose dto.OTPPurpose) (*domain.OTP, error) {
+func (p *Provider) GetOTPByCodeAndUserID(
+	ctx context.Context,
+	code, userID string,
+	purpose dto.OTPPurpose,
+) (*domain.OTP, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "GetOTPByCodeAndUserID")
 	defer span.End()
 

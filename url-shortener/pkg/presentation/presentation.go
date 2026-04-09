@@ -31,7 +31,26 @@ const (
 
 // PrepareServer initializes infrastructure and usecases layers, then sets up the router.
 func PrepareServer() (http.Handler, error) {
-	infrastructure, err := infrastructure.New()
+	redisURL := helpers.MustGetEnvVar("REDIS_URL")
+
+	opts, err := redis.ParseURL(redisURL)
+	if err != nil {
+		panic(err)
+	}
+
+	opts.PoolSize = 10
+	opts.MinIdleConns = 5
+	opts.PoolTimeout = 15 * time.Second
+	opts.DialTimeout = 5 * time.Second
+	opts.ReadTimeout = 3 * time.Second
+	opts.WriteTimeout = 3 * time.Second
+	opts.MaxRetries = 3
+	opts.MinRetryBackoff = 8 * time.Millisecond
+	opts.MaxRetryBackoff = 512 * time.Millisecond
+
+	redisClient := redis.NewClient(opts)
+
+	infrastructure, err := infrastructure.New(redisClient)
 	if err != nil {
 		slog.Error("error initializing infrastructure layer", "err", err)
 
@@ -47,16 +66,19 @@ func PrepareServer() (http.Handler, error) {
 		infrastructure.Hibp,
 		infrastructure.Otp,
 		infrastructure.TasksQueue,
+		infrastructure.Cache,
 	)
 
-	r := setupRoutes(healthcheckUC, authUC)
+	r := SetupRoutes(redisClient, healthcheckUC, authUC)
 
 	return r, nil
 }
 
-func setupRoutes(
+// SetupRoutes configures the http router paths
+func SetupRoutes(
+	redisClient *redis.Client,
 	healthUC *healthcheck.UsecaseImpl,
-	userUC *auth.UsecaseImpl,
+	auth *auth.UsecaseImpl,
 ) *chi.Mux {
 	debug := helpers.MustGetEnvVar("ENVIRONMENT") == "dev"
 
@@ -64,18 +86,9 @@ func setupRoutes(
 
 	serviceName := "url-shortener"
 
-	redisURL := helpers.MustGetEnvVar("REDIS_URL")
-
-	opts, err := redis.ParseURL(redisURL)
-	if err != nil {
-		panic(err)
-	}
-
-	client := redis.NewClient(opts)
-
 	sessionManager := scs.New()
 	sessionManager.Lifetime = time.Minute * 15
-	sessionManager.Store = goredisstore.New(client)
+	sessionManager.Store = goredisstore.New(redisClient)
 	sessionManager.Cookie = scs.SessionCookie{
 		Name:        "urlshortener-session",
 		HttpOnly:    true,
@@ -101,7 +114,7 @@ func setupRoutes(
 	logger := slog.New(multiHandler)
 	slog.SetDefault(logger)
 
-	usecases := usecase.New(healthUC, userUC)
+	usecases := usecase.New(healthUC, auth)
 
 	handlers := rest.New(usecases, sessionManager)
 
@@ -146,36 +159,78 @@ func setupRoutes(
 			r.Route("/auth", func(r chi.Router) {
 				r.Route("/register", func(r chi.Router) {
 					r.Use(sessionManager.LoadAndSave)
-					r.Use(httprate.LimitByIP(5, time.Minute*1))
+
+					if !debug {
+						r.Use(httprate.LimitByIP(5, time.Minute*1))
+					}
+
 					r.Post("/", handlers.CreateUserEmailPassword)
 				})
+
 				r.Route("/login", func(r chi.Router) {
 					r.Use(sessionManager.LoadAndSave)
-					r.Use(httprate.LimitByIP(10, time.Minute*1))
+
+					if !debug {
+						r.Use(httprate.LimitByIP(10, time.Minute*1))
+					}
+
 					r.Post("/", handlers.Login)
 				})
+
 				r.Route("/validate-password", func(r chi.Router) {
 					r.Use(httprate.LimitByIP(10, time.Minute*1))
 					r.Post("/", handlers.ValidatePassword)
 				})
+
 				r.Route("/refresh", func(r chi.Router) {
 					r.Use(httprate.LimitByIP(5, time.Minute*10))
 					r.Post("/", handlers.RefreshAccessToken)
 				})
+
 				r.Route("/verify-otp", func(r chi.Router) {
 					r.Use(sessionManager.LoadAndSave)
-					r.Use(httprate.Limit(
-						5,
-						15*time.Minute,
-						httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
-							return sessionManager.GetString(r.Context(), "user_id"), nil
-						})))
+
+					if !debug {
+						r.Use(httprate.Limit(
+							5,
+							15*time.Minute,
+							httprate.WithKeyFuncs(func(r *http.Request) (string, error) {
+								return sessionManager.GetString(r.Context(), "user_id"), nil
+							})))
+					}
+
 					r.Post("/", handlers.VerifyOTP)
+				})
+
+				r.Route("/oauth/google", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.InitGoogleOAuth)
+				})
+
+				r.Route("/oauth/google/callback", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.GoogleOAuthCallback)
+				})
+
+				r.Route("/oauth/github", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.InitGithubOAuth)
+				})
+
+				r.Route("/oauth/github/callback", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(10, time.Minute*1))
+					r.Post("/", handlers.GithubOAuthCallback)
+				})
+
+				r.Route("/logout", func(r chi.Router) {
+					r.Use(AuthMiddleware(auth))
+					r.Post("/", handlers.Logout)
 				})
 			})
 
 			r.Route("/links", func(r chi.Router) {
-				r.Use(AuthMiddleware(userUC))
+				r.Use(AuthMiddleware(auth))
+				r.Use(CSRFMiddleware())
 
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{code}", func(_ http.ResponseWriter, _ *http.Request) {})
@@ -183,14 +238,16 @@ func setupRoutes(
 			})
 
 			r.Route("/clicks", func(r chi.Router) {
-				r.Use(AuthMiddleware(userUC))
+				r.Use(AuthMiddleware(auth))
+				r.Use(CSRFMiddleware())
 
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/", func(_ http.ResponseWriter, _ *http.Request) {})
 			})
 
 			r.Route("/users", func(r chi.Router) {
-				r.Use(AuthMiddleware(userUC))
+				r.Use(AuthMiddleware(auth))
+				r.Use(CSRFMiddleware())
 
 				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
 				r.Get("/{slug}", func(_ http.ResponseWriter, _ *http.Request) {})

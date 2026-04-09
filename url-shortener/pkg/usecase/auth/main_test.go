@@ -54,7 +54,9 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 				hibp.EXPECT().CheckPasswordIsBreached(mock.Anything, password).Return(false, nil)
 				repo.EXPECT().CreateUser(mock.Anything, mock.AnythingOfType("*domain.User")).Return(resp, nil)
 				otp.EXPECT().GenerateOTP(mock.Anything, mock.Anything, dto.EmailVerification).Return("000000", nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(nil)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(nil)
 
 				return args{
 					ctx:   ctx,
@@ -75,7 +77,9 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 				password := gofakeit.Password(true, true, true, true, false, 10)
 
 				repo.EXPECT().GetUserByEmail(mock.Anything, email).Return(&domain.User{Email: email}, nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(nil)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(nil)
 
 				return args{
 					ctx:   ctx,
@@ -128,7 +132,9 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 				password := gofakeit.Password(true, true, true, true, false, 10)
 
 				repo.EXPECT().GetUserByEmail(mock.Anything, email).Return(&domain.User{Email: email}, nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(errMsg)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(errMsg)
 
 				return args{
 					ctx:   ctx,
@@ -157,7 +163,9 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 				hibp.EXPECT().CheckPasswordIsBreached(mock.Anything, password).Return(false, errMsg)
 				repo.EXPECT().CreateUser(mock.Anything, mock.AnythingOfType("*domain.User")).Return(resp, nil)
 				otp.EXPECT().GenerateOTP(mock.Anything, mock.Anything, dto.EmailVerification).Return("000000", nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(nil)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(nil)
 
 				return args{
 					ctx:   ctx,
@@ -223,7 +231,9 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 				hibp.EXPECT().CheckPasswordIsBreached(mock.Anything, password).Return(false, nil)
 				repo.EXPECT().CreateUser(mock.Anything, mock.AnythingOfType("*domain.User")).Return(resp, nil)
 				otp.EXPECT().GenerateOTP(mock.Anything, mock.Anything, dto.EmailVerification).Return("000000", nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(errMsg)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(errMsg)
 
 				return args{
 					ctx:   ctx,
@@ -262,8 +272,18 @@ func TestUsecaseImpl_CreateUserEmailPassword(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 			args := tt.setup(repo, otp, tasks, hibp)
 
 			got, gotErr := u.CreateUserEmailPassword(context.Background(), args.input)
@@ -305,8 +325,18 @@ func TestUsecaseImpl_ValidatePasswordStrength(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 
 			got := u.ValidatePasswordStrength(context.Background(), tt.input)
 
@@ -325,6 +355,9 @@ func TestUsecaseImpl_ValidateJWTToken(t *testing.T) {
 		tokenString string
 		want        jwt.MapClaims
 	}
+
+	accessTokenTTL := 15 * time.Second
+	accessKey := helpers.MustGetEnvVar("JWT_ACCESS_SIGNING_KEY")
 
 	tests := []struct {
 		name    string
@@ -413,8 +446,18 @@ func TestUsecaseImpl_ValidateJWTToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 
 			args := tt.setup()
 
@@ -465,7 +508,9 @@ func TestUsecaseImpl_Login(t *testing.T) {
 					CreatedAt:    createdAt,
 				}, nil)
 				otp.EXPECT().GenerateOTP(mock.Anything, mock.Anything, dto.Login).Return("000000", nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(nil)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(nil)
 
 				return args{
 					ctx:   ctx,
@@ -582,7 +627,9 @@ func TestUsecaseImpl_Login(t *testing.T) {
 					CreatedAt:    now,
 				}, nil)
 				otp.EXPECT().GenerateOTP(mock.Anything, mock.Anything, dto.Login).Return("000000", nil)
-				tasks.EXPECT().NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).Return(errMsg)
+				tasks.EXPECT().
+					NewEmailDeliveryTask(mock.Anything, mock.AnythingOfType("tasks.EmailDeliveryPayload"), mock.AnythingOfType("tasks.Priority")).
+					Return(errMsg)
 
 				return args{
 					ctx:   ctx,
@@ -595,8 +642,18 @@ func TestUsecaseImpl_Login(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 			args := tt.setup(repo, otp, tasks)
 
 			got, gotErr := u.Login(args.ctx, args.input)
@@ -749,8 +806,18 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 			args := tt.setup(repo)
 
 			_, gotErr := u.RefreshAccessToken(args.ctx, args.refreshToken)
@@ -787,12 +854,14 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID:  publicID,
-					Code:      code,
-					Revoked:   false,
-					ExpiresAt: time.Now().Add(5 * time.Minute),
-				}, nil)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID:  publicID,
+						Code:      code,
+						Revoked:   false,
+						ExpiresAt: time.Now().Add(5 * time.Minute),
+					}, nil)
 				otp.EXPECT().RevokeAllOTPsForUser(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				repo.EXPECT().SaveRefreshToken(mock.Anything, mock.AnythingOfType("domain.RefreshToken")).Return(nil)
 
@@ -812,12 +881,14 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID:  publicID,
-					Code:      code,
-					Revoked:   false,
-					ExpiresAt: time.Now().Add(5 * time.Minute),
-				}, nil)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID:  publicID,
+						Code:      code,
+						Revoked:   false,
+						ExpiresAt: time.Now().Add(5 * time.Minute),
+					}, nil)
 				otp.EXPECT().RevokeAllOTPsForUser(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 				repo.EXPECT().SaveRefreshToken(mock.Anything, mock.AnythingOfType("domain.RefreshToken")).Return(errMsg)
 
@@ -837,12 +908,14 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID:  publicID,
-					Code:      code,
-					Revoked:   false,
-					ExpiresAt: time.Now().Add(5 * time.Minute),
-				}, nil)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID:  publicID,
+						Code:      code,
+						Revoked:   false,
+						ExpiresAt: time.Now().Add(5 * time.Minute),
+					}, nil)
 				otp.EXPECT().RevokeAllOTPsForUser(mock.Anything, mock.Anything, mock.Anything).Return(errMsg)
 				repo.EXPECT().SaveRefreshToken(mock.Anything, mock.AnythingOfType("domain.RefreshToken")).Return(nil)
 
@@ -862,12 +935,14 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID:  publicID,
-					Code:      code,
-					Revoked:   false,
-					ExpiresAt: time.Date(2026, 0o1, 0o1, 11, 30, 45, 98, time.UTC),
-				}, nil)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID:  publicID,
+						Code:      code,
+						Revoked:   false,
+						ExpiresAt: time.Date(2026, 0o1, 0o1, 11, 30, 45, 98, time.UTC),
+					}, nil)
 
 				return args{ctx: ctx, input: &dto.VerifyOTPInput{Purpose: dto.Login, Value: "000000"}}
 			},
@@ -885,12 +960,14 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&domain.OTP{
-					PublicID:  publicID,
-					Code:      code,
-					Revoked:   true,
-					ExpiresAt: time.Now().Add(5 * time.Minute),
-				}, nil)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(&domain.OTP{
+						PublicID:  publicID,
+						Code:      code,
+						Revoked:   true,
+						ExpiresAt: time.Now().Add(5 * time.Minute),
+					}, nil)
 
 				return args{ctx: ctx, input: &dto.VerifyOTPInput{Purpose: dto.Login, Value: "000000"}}
 			},
@@ -907,7 +984,9 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, errMsg)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, errMsg)
 
 				return args{ctx: ctx, input: &dto.VerifyOTPInput{Purpose: dto.Login, Value: "000000"}}
 			},
@@ -924,7 +1003,9 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 					Email:    email,
 					PublicID: publicID,
 				}, nil)
-				otp.EXPECT().GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
+				otp.EXPECT().
+					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+					Return(nil, repository.ErrNotFound)
 
 				return args{ctx: ctx, input: &dto.VerifyOTPInput{Purpose: dto.Login, Value: "000000"}}
 			},
@@ -952,8 +1033,18 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo, hibp, otp, tasks := mocks.NewMockrepo(t), mocks.NewMockhibp(t), mocks.NewMockotp(t), mocks.NewMockbackgroundTasks(t)
-			u := New(repo, hibp, otp, tasks)
+			repo, hibp, otp, tasks, cache := mocks.NewMockrepo(
+				t,
+			), mocks.NewMockhibp(
+				t,
+			), mocks.NewMockotp(
+				t,
+			), mocks.NewMockbackgroundTasks(
+				t,
+			), mocks.NewMockcache(
+				t,
+			)
+			u := New(repo, hibp, otp, tasks, cache)
 			args := tt.setup(repo, otp)
 
 			_, gotErr := u.VerifyOTP(args.ctx, args.input)

@@ -1,4 +1,4 @@
-// Package repository implements functionality for interacting with the database.
+// Package repository implements database access functionality.
 package repository
 
 import (
