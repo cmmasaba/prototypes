@@ -25,6 +25,7 @@ packages:
   github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/shortener:
     interfaces:
       repo:
+      cache:
   github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest:
     interfaces:
       usecases:

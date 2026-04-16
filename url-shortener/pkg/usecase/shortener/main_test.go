@@ -24,40 +24,40 @@ func TestShortener_ShortenURL(t *testing.T) {
 	tests := []struct {
 		name    string
 		wantErr bool
-		setup   func(repo *mocks.Mockrepo) args
+		setup   func(repo *mocks.Mockrepo, cache *mocks.Mockcache) args
 	}{
 		{
 			name:    "sad case: failed to shorten url - empty string",
 			wantErr: true,
-			setup: func(_ *mocks.Mockrepo) args {
+			setup: func(_ *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				return args{url: ""}
 			},
 		},
 		{
 			name:    "sad case: failed to shorten url-missing scheme",
 			wantErr: true,
-			setup: func(_ *mocks.Mockrepo) args {
+			setup: func(_ *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				return args{url: "www.example.com"}
 			},
 		},
 		{
 			name:    "sad case: failed to shorten url-missing host",
 			wantErr: true,
-			setup: func(_ *mocks.Mockrepo) args {
+			setup: func(_ *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				return args{url: "https://"}
 			},
 		},
 		{
 			name:    "sad case: failed to shorten url-length exceeds maximum limit",
 			wantErr: true,
-			setup: func(_ *mocks.Mockrepo) args {
+			setup: func(_ *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				return args{url: "https://example.com/data?query=" + sb.String()}
 			},
 		},
 		{
 			name:    "sad case: failed to shorten url-error checking for existence",
 			wantErr: true,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
 
 				return args{url: "http://example.com"}
@@ -66,7 +66,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "sad case: failed to shorten url-error saving short url to db",
 			wantErr: true,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, nil)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(nil, fmt.Errorf("an error occurred"))
 
@@ -76,7 +76,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "sad case: generated short code already exists",
 			wantErr: true,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(&domain.Link{}, nil).Times(5)
 
 				return args{url: "http://example.com"}
@@ -85,7 +85,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "happy case: successfully shorten url",
 			wantErr: false,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(&domain.Link{}, nil)
 
@@ -95,7 +95,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "happy case: successfully shorten url with query params",
 			wantErr: false,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(&domain.Link{}, nil)
 
@@ -105,7 +105,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "happy case: successfully shorten url with anchor",
 			wantErr: false,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(&domain.Link{}, nil)
 
@@ -115,7 +115,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "happy case: successfully shorten url with port number",
 			wantErr: false,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(&domain.Link{}, nil)
 
@@ -125,7 +125,7 @@ func TestShortener_ShortenURL(t *testing.T) {
 		{
 			name:    "happy case: successfully shorten url with url path",
 			wantErr: false,
-			setup: func(repo *mocks.Mockrepo) args {
+			setup: func(repo *mocks.Mockrepo, _ *mocks.Mockcache) args {
 				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, repository.ErrNotFound)
 				repo.EXPECT().CreateShortLink(mock.Anything, mock.AnythingOfType("domain.Link")).Return(&domain.Link{}, nil)
 
@@ -136,8 +136,9 @@ func TestShortener_ShortenURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := mocks.NewMockrepo(t)
-			s := New(repo)
-			args := tt.setup(repo)
+			cache := mocks.NewMockcache(t)
+			s := New(repo, cache)
+			args := tt.setup(repo, cache)
 
 			_, gotErr := s.ShortenURL(t.Context(), args.url)
 			if (gotErr != nil) != tt.wantErr {
