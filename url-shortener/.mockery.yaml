@@ -1,15 +1,15 @@
 all: false
-dir: '{{.InterfaceDir}}/mocks'
+dir: "{{.InterfaceDir}}/mocks"
 force-file-write: true
 formatter: goimports
 log-level: warn
 recursive: false
 require-template-schema-exists: true
 template: testify
-template-schema: '{{.Template}}.schema.json'
-filename: '{{base .InterfaceDir}}_mocks.go'
-structname: 'Mock{{.InterfaceName}}'
-pkgname: 'mocks'
+template-schema: "{{.Template}}.schema.json"
+filename: "{{base .InterfaceDir}}_mocks.go"
+structname: "Mock{{.InterfaceName}}"
+pkgname: "mocks"
 packages:
   github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck:
     interfaces:
@@ -22,6 +22,9 @@ packages:
       backgroundTasks:
       otp:
       cache:
+  github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/shortener:
+    interfaces:
+      repo:
   github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest:
     interfaces:
       usecases:

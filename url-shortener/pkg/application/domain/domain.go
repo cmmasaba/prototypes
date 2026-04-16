@@ -42,18 +42,22 @@ type User struct {
 }
 
 type RefreshToken struct {
-	ID        int64
-	UserID    int64
-	Token     string
 	Revoked   bool
+	Token     string
 	ExpiresAt time.Time
 	CreatedAt time.Time
+	User      User
 }
 
 type OTP struct {
-	PublicID  string
-	Code      string
-	ExpiresAt time.Time
 	Revoked   bool
+	Code      string
 	Purpose   dto.OTPPurpose
+	ExpiresAt time.Time
+	User      User
+}
+
+type LoginAttempt struct {
+	FailCount, Tier        int
+	LockedUntil, UpdatedAt *time.Time
 }

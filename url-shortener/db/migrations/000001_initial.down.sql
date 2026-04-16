@@ -2,6 +2,8 @@ BEGIN;
 
 SET search_path TO urlshortener;
 
+DROP TABLE IF EXISTS login_attempts;
+
 DROP INDEX IF EXISTS idx_otp_user_code_purpose;
 ALTER TABLE IF EXISTS otp DROP CONSTRAINT IF EXISTS unique_userid_code_purpose;
 ALTER TABLE IF EXISTS otp DROP CONSTRAINT IF EXISTS otp_purpose_check;

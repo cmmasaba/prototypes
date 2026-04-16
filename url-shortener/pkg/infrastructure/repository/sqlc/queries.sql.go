@@ -172,8 +172,34 @@ func (q *Queries) GetExpiredShortLinkByUserID(ctx context.Context, userID int64)
 	return items, nil
 }
 
+const getLoginAttempt = `-- name: GetLoginAttempt :one
+SELECT fail_count, tier, locked_until, updated_at FROM login_attempts WHERE user_id=$1
+`
+
+type GetLoginAttemptRow struct {
+	FailCount   int32
+	Tier        int32
+	LockedUntil pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) GetLoginAttempt(ctx context.Context, userID int64) (GetLoginAttemptRow, error) {
+	row := q.db.QueryRow(ctx, getLoginAttempt, userID)
+	var i GetLoginAttemptRow
+	err := row.Scan(
+		&i.FailCount,
+		&i.Tier,
+		&i.LockedUntil,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getOTPByCodeAndUserID = `-- name: GetOTPByCodeAndUserID :one
-SELECT code, user_public_id, revoked, expires_at FROM otp
+SELECT u.id, u.public_id, u.email, u.created_at, o.code, o.revoked, o.expires_at
+FROM otp AS o
+INNER JOIN users AS u
+ON o.user_public_id = u.public_id
 WHERE
 	user_public_id=$1 AND code=$2 AND purpose=$3
 LIMIT 1
@@ -186,18 +212,24 @@ type GetOTPByCodeAndUserIDParams struct {
 }
 
 type GetOTPByCodeAndUserIDRow struct {
-	Code         string
-	UserPublicID pgtype.UUID
-	Revoked      bool
-	ExpiresAt    pgtype.Timestamptz
+	ID        int64
+	PublicID  pgtype.UUID
+	Email     string
+	CreatedAt pgtype.Timestamptz
+	Code      string
+	Revoked   bool
+	ExpiresAt pgtype.Timestamptz
 }
 
 func (q *Queries) GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAndUserIDParams) (GetOTPByCodeAndUserIDRow, error) {
 	row := q.db.QueryRow(ctx, getOTPByCodeAndUserID, arg.UserPublicID, arg.Code, arg.Purpose)
 	var i GetOTPByCodeAndUserIDRow
 	err := row.Scan(
+		&i.ID,
+		&i.PublicID,
+		&i.Email,
+		&i.CreatedAt,
 		&i.Code,
-		&i.UserPublicID,
 		&i.Revoked,
 		&i.ExpiresAt,
 	)
@@ -205,20 +237,30 @@ func (q *Queries) GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAnd
 }
 
 const getRefreshTokenByToken = `-- name: GetRefreshTokenByToken :one
-SELECT id, user_id, token, expires_at, created_at, revoked FROM refresh_tokens
+SELECT u.id, u.public_id, r.token, r.expires_at, r.revoked
+FROM refresh_tokens AS r
+INNER JOIN users AS u
+ON r.user_id = u.id
 WHERE
-	token = $1
+	r.token = $1
 `
 
-func (q *Queries) GetRefreshTokenByToken(ctx context.Context, token string) (RefreshToken, error) {
+type GetRefreshTokenByTokenRow struct {
+	ID        int64
+	PublicID  pgtype.UUID
+	Token     string
+	ExpiresAt pgtype.Timestamptz
+	Revoked   bool
+}
+
+func (q *Queries) GetRefreshTokenByToken(ctx context.Context, token string) (GetRefreshTokenByTokenRow, error) {
 	row := q.db.QueryRow(ctx, getRefreshTokenByToken, token)
-	var i RefreshToken
+	var i GetRefreshTokenByTokenRow
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
+		&i.PublicID,
 		&i.Token,
 		&i.ExpiresAt,
-		&i.CreatedAt,
 		&i.Revoked,
 	)
 	return i, err
@@ -342,6 +384,48 @@ func (q *Queries) GetUserByPublicID(ctx context.Context, publicID pgtype.UUID) (
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const linkOAuthUser = `-- name: LinkOAuthUser :one
+UPDATE users SET oauth_provider = $1, oauth_provider_id = $2
+WHERE email = $3
+RETURNING email, public_id, oauth_provider, oauth_provider_id, created_at
+`
+
+type LinkOAuthUserParams struct {
+	OauthProvider   pgtype.Text
+	OauthProviderID pgtype.Text
+	Email           string
+}
+
+type LinkOAuthUserRow struct {
+	Email           string
+	PublicID        pgtype.UUID
+	OauthProvider   pgtype.Text
+	OauthProviderID pgtype.Text
+	CreatedAt       pgtype.Timestamptz
+}
+
+func (q *Queries) LinkOAuthUser(ctx context.Context, arg LinkOAuthUserParams) (LinkOAuthUserRow, error) {
+	row := q.db.QueryRow(ctx, linkOAuthUser, arg.OauthProvider, arg.OauthProviderID, arg.Email)
+	var i LinkOAuthUserRow
+	err := row.Scan(
+		&i.Email,
+		&i.PublicID,
+		&i.OauthProvider,
+		&i.OauthProviderID,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const resetLoginAttempts = `-- name: ResetLoginAttempts :exec
+DELETE FROM login_attempts WHERE user_id=$1
+`
+
+func (q *Queries) ResetLoginAttempts(ctx context.Context, userID int64) error {
+	_, err := q.db.Exec(ctx, resetLoginAttempts, userID)
+	return err
 }
 
 const revokeAllOTPsForUser = `-- name: RevokeAllOTPsForUser :exec
@@ -535,4 +619,28 @@ func (q *Queries) SaveUser(ctx context.Context, arg SaveUserParams) (User, error
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const upsertLoginAttempt = `-- name: UpsertLoginAttempt :exec
+INSERT INTO login_attempts (user_id, fail_count, tier, locked_until, updated_at)
+VALUES ($1, $2, $3, $4, NOW())
+ON CONFLICT (user_id) DO UPDATE SET
+fail_count=$2, tier=$3, locked_until=$4, updated_at=NOW()
+`
+
+type UpsertLoginAttemptParams struct {
+	UserID      int64
+	FailCount   int32
+	Tier        int32
+	LockedUntil pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertLoginAttempt(ctx context.Context, arg UpsertLoginAttemptParams) error {
+	_, err := q.db.Exec(ctx, upsertLoginAttempt,
+		arg.UserID,
+		arg.FailCount,
+		arg.Tier,
+		arg.LockedUntil,
+	)
+	return err
 }

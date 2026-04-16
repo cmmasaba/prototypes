@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/testcontainers/testcontainers-go"
@@ -13,6 +14,16 @@ import (
 )
 
 var testRepository *Repository
+
+type cacheStub struct{}
+
+func (c cacheStub) Get(_ context.Context, _ string) ([]byte, error) {
+	return nil, nil
+}
+
+func (c cacheStub) Set(_ context.Context, _ string, _ any, _ time.Duration) error {
+	return nil
+}
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
@@ -55,7 +66,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	testRepository, err = New(connString)
+	testRepository, err = New(connString, cacheStub{})
 	if err != nil {
 		slog.Error("failed to initialize repository", "err", err)
 		cleanup()

@@ -87,9 +87,11 @@ func TestProvider_GetOTPByCodeAndUserID(t *testing.T) {
 				repo.EXPECT().
 					GetOTPByCodeAndUser(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID: userID,
-						Code:     "000000",
-						Purpose:  purpose,
+						User: domain.User{
+							PublicID: userID,
+						},
+						Code:    "000000",
+						Purpose: purpose,
 					}, nil)
 
 				return args{code: "000000", userID: userID, purpose: purpose}

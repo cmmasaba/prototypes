@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	defaultMaxConns          = int32(4)
-	defaultMinConns          = int32(0)
+	defaultMaxConns          = int32(8)
+	defaultMinConns          = int32(1)
 	defaultMaxConnLifetime   = time.Hour
 	defaultMaxConnIdleTime   = time.Minute * 30
 	defaultHealthCheckPeriod = time.Minute
@@ -31,14 +31,20 @@ var (
 	ErrNotFound            = errors.New("record not found")
 )
 
+type cache interface {
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, value any, expiration time.Duration) error
+}
+
 // Repository encapsulates db operations.
 type Repository struct {
-	db   *sqlc.Queries
-	pool *pgxpool.Pool
+	db    *sqlc.Queries
+	pool  *pgxpool.Pool
+	cache cache
 }
 
 // New returns a *[Repository] built from the passed connection string.
-func New(connString string) (*Repository, error) {
+func New(connString string, cache cache) (*Repository, error) {
 	dbConfig, err := pgxpool.ParseConfig(connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pgxpool config: %w", err)
@@ -72,8 +78,9 @@ func New(connString string) (*Repository, error) {
 	}
 
 	r := &Repository{
-		db:   sqlc.New(connPool),
-		pool: connPool,
+		db:    sqlc.New(connPool),
+		pool:  connPool,
+		cache: cache,
 	}
 
 	return r, nil

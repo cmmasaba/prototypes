@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
@@ -31,6 +32,16 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 )
+
+type stubCache struct{}
+
+func (c stubCache) Get(_ context.Context, _ string) ([]byte, error) {
+	return nil, nil
+}
+
+func (c stubCache) Set(_ context.Context, _ string, _ any, _ time.Duration) error {
+	return nil
+}
 
 type stubHIBP struct{}
 
@@ -123,7 +134,7 @@ func TestMain(m *testing.M) {
 		return
 	}
 
-	repo, err = repository.New(dbConnString)
+	repo, err = repository.New(dbConnString, stubCache{})
 	if err != nil {
 		slog.Error("failed to initialize repository", "err", err)
 		cleanup(postgresCtr)

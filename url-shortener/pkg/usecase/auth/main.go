@@ -54,8 +54,21 @@ var (
 	ErrExpiredOTPCode      = errors.New("expired otp code, request a new code")
 	ErrIncorrectOTP        = errors.New("incorrect otp, try again")
 	ErrPasswordBreached    = errors.New("oops the input password was found in a breach, try another password")
+	ErrAccountLocked       = errors.New("too many failed login attempts, try again later")
 
 	oauthCacheKey = "oauth:%s"
+
+	dummyHash, _ = bcrypt.GenerateFromPassword([]byte("dummy"), bcrypt.DefaultCost)
+
+	tiers = []struct {
+		MaxAttempts     int
+		LockoutDuration time.Duration
+	}{
+		{5, 1 * time.Minute},
+		{3, 5 * time.Minute},
+		{2, 15 * time.Minute},
+		{1, 60 * time.Minute},
+	}
 )
 
 type repo interface {
@@ -64,11 +77,16 @@ type repo interface {
 	GetUserByOAuthProviderAndID(ctx context.Context, oauthProvider, oauthProviderID string) (*domain.User, error)
 	GetUserByID(ctx context.Context, id int64) (*domain.User, error)
 	GetUserByPublicID(ctx context.Context, publicID string) (*domain.User, error)
+	LinkOAuthUser(ctx context.Context, email, oauthProvider, oauthProviderID string) (*domain.User, error)
 
 	GetRefreshTokenByTokenHash(ctx context.Context, token string) (*domain.RefreshToken, error)
 	SaveRefreshToken(ctx context.Context, input domain.RefreshToken) error
 	RevokeRefreshToken(ctx context.Context, token string) error
 	RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error
+
+	GetLoginAttempt(ctx context.Context, userID int64) (*domain.LoginAttempt, error)
+	UpdateLoginAttempt(ctx context.Context, userID int64, failCount, tier int, lockedUntil *time.Time) error
+	ResetLoginAttempts(ctx context.Context, userID int64) error
 }
 
 type hibp interface {
@@ -253,6 +271,9 @@ func (u *UsecaseImpl) Login(ctx context.Context, input *dto.LoginInput) (*dto.OT
 
 	user, err := u.repo.GetUserByEmail(ctx, input.Email)
 	if err != nil {
+		// Get user failed, do random password comparison to avoid timing attacks
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(input.Password))
+
 		slog.ErrorContext(ctx, "get user by email failed", "err", err)
 
 		return nil, ErrInvalidCredentials
@@ -264,10 +285,34 @@ func (u *UsecaseImpl) Login(ctx context.Context, input *dto.LoginInput) (*dto.OT
 		return nil, ErrInvalidCredentials
 	}
 
-	err = verifyPassword(ctx, *user.PasswordHash, input.Password)
+	attempt, err := u.repo.GetLoginAttempt(ctx, user.ID)
+	if err != nil {
+		slog.ErrorContext(ctx, "get login attempt for user failed", "err", err)
+
+		return nil, errInternalError
+	}
+
+	if attempt != nil && attempt.LockedUntil != nil && time.Now().Before(*attempt.LockedUntil) {
+		return nil, ErrAccountLocked
+	}
+
+	if attempt != nil && attempt.LockedUntil != nil && time.Now().After(*attempt.LockedUntil) {
+		nextTier := min(attempt.Tier, len(tiers)-1)
+
+		err = u.repo.UpdateLoginAttempt(ctx, user.ID, 0, nextTier, nil)
+		if err != nil {
+			slog.ErrorContext(ctx, "update login attempts for user failed", "err", err)
+
+			return nil, errInternalError
+		}
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(*user.PasswordHash), []byte(input.Password))
 	if err != nil {
 		slog.ErrorContext(ctx, "password verification failed")
 		telemetry.RecordError(span, err)
+
+		u.recordFailedLogin(ctx, user.ID, attempt)
 
 		return nil, ErrInvalidCredentials
 	}
@@ -348,12 +393,6 @@ func (u *UsecaseImpl) RefreshAccessToken(
 		return nil, ErrExpiredToken
 	}
 
-	user, err := u.repo.GetUserByID(ctx, token.UserID)
-	if err != nil {
-		slog.ErrorContext(ctx, "get user by id failed", "err", err)
-		return nil, errInternalError
-	}
-
 	err = u.repo.RevokeRefreshToken(ctx, inputHash)
 	if err != nil {
 		slog.ErrorContext(ctx, "revoke refresh token failed", "err", err)
@@ -361,7 +400,7 @@ func (u *UsecaseImpl) RefreshAccessToken(
 		return nil, errInternalError
 	}
 
-	accessToken, newRefreshToken, err := u.generateAuthTokens(ctx, user)
+	accessToken, newRefreshToken, err := u.generateAuthTokens(ctx, &token.User)
 	if err != nil {
 		return nil, err
 	}
@@ -373,6 +412,32 @@ func (u *UsecaseImpl) RefreshAccessToken(
 	}, nil
 }
 
+func (u *UsecaseImpl) RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error {
+	ctx, span := telemetry.Trace(ctx, packageName, "RequestNewOTP")
+	defer span.End()
+
+	var emailType dto.EmailDeliveryType
+
+	switch purpose {
+	case dto.EmailVerification:
+		emailType = dto.TypeVerificationEmail
+	case dto.Login:
+		emailType = dto.TypeLoginEmail
+	case dto.PasswordReset:
+		emailType = dto.TypePasswordResetEmail
+	}
+
+	err := u.sendMail(ctx, publicUserID, recipient, emailType)
+	if err != nil {
+		slog.ErrorContext(ctx, "error sending otp email", "err", err)
+		telemetry.RecordError(span, err)
+
+		return errInternalError
+	}
+
+	return nil
+}
+
 // VerifyOTP validates the OTP and returns JWT auth tokens on success.
 func (u *UsecaseImpl) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (*dto.AuthResponse, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "VerifyOTP")
@@ -381,13 +446,6 @@ func (u *UsecaseImpl) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) 
 	userID, ok := helpers.GetUserIDCtx(ctx)
 	if !ok {
 		slog.ErrorContext(ctx, "get userID from context failed")
-
-		return nil, errInternalError
-	}
-
-	user, err := u.repo.GetUserByPublicID(ctx, userID)
-	if err != nil {
-		slog.ErrorContext(ctx, "get user by public ID failed", "err", err)
 
 		return nil, errInternalError
 	}
@@ -411,12 +469,12 @@ func (u *UsecaseImpl) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) 
 		return nil, ErrExpiredOTPCode
 	}
 
-	err = u.otp.RevokeAllOTPsForUser(ctx, user.PublicID, input.Purpose)
+	err = u.otp.RevokeAllOTPsForUser(ctx, otp.User.PublicID, input.Purpose)
 	if err != nil {
-		slog.ErrorContext(ctx, "revoke otp failed", "err", err, "user_id", user.PublicID)
+		slog.ErrorContext(ctx, "revoke otp failed", "err", err, "user_id", otp.User.PublicID)
 	}
 
-	accessToken, refreshToken, err := u.generateAuthTokens(ctx, user)
+	accessToken, refreshToken, err := u.generateAuthTokens(ctx, &otp.User)
 	if err != nil {
 		return nil, err
 	}
@@ -425,9 +483,9 @@ func (u *UsecaseImpl) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) 
 
 	return &dto.AuthResponse{
 		User: dto.User{
-			PublicID:  user.PublicID,
-			Email:     user.Email,
-			CreatedAt: user.CreatedAt,
+			PublicID:  otp.User.PublicID,
+			Email:     otp.User.Email,
+			CreatedAt: otp.User.CreatedAt,
 		},
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
@@ -565,6 +623,32 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 	}, nil
 }
 
+func (u UsecaseImpl) recordFailedLogin(ctx context.Context, userID int64, attempt *domain.LoginAttempt) {
+	ctx, span := telemetry.Trace(ctx, packageName, "recordFailedLogin")
+	defer span.End()
+
+	tier, failCount := 0, 1
+
+	if attempt != nil {
+		tier, failCount = attempt.Tier, attempt.FailCount
+	}
+
+	tierCfg := tiers[tier]
+
+	var lockedUntil *time.Time
+
+	if failCount >= tierCfg.MaxAttempts {
+		t := time.Now().Add(tierCfg.LockoutDuration)
+		lockedUntil = &t
+	}
+
+	err := u.repo.UpdateLoginAttempt(ctx, userID, failCount, tier, lockedUntil)
+	if err != nil {
+		slog.ErrorContext(ctx, "record user failed login attempts failed", "err", err)
+		telemetry.RecordError(span, err)
+	}
+}
+
 func (u *UsecaseImpl) getOrCreateOAuthUser(
 	ctx context.Context,
 	email, oauthProvider, oauthProviderID string,
@@ -581,6 +665,24 @@ func (u *UsecaseImpl) getOrCreateOAuthUser(
 
 	if user != nil {
 		slog.InfoContext(ctx, "get user by oauth provider and oauthid  found")
+
+		return user, nil
+	}
+
+	user, err = u.repo.GetUserByEmail(ctx, email)
+	if err != nil && !errors.Is(err, repository.ErrNotFound) {
+		slog.ErrorContext(ctx, "get user by email failed", "err", err)
+
+		return nil, err
+	}
+
+	if user != nil {
+		user, err = u.repo.LinkOAuthUser(ctx, email, oauthProvider, oauthProviderID)
+		if err != nil {
+			slog.ErrorContext(ctx, "link oauth to exisiting user failed", "err", err)
+
+			return nil, err
+		}
 
 		return user, nil
 	}
@@ -653,8 +755,6 @@ func (u *UsecaseImpl) sendMail(
 	defer span.End()
 
 	if !purpose.IsValid() {
-		slog.ErrorContext(ctx, "invalid type for email delivery", "value", purpose)
-
 		return fmt.Errorf("invalid type for email delivery: %v", purpose)
 	}
 
@@ -759,7 +859,7 @@ func (u *UsecaseImpl) generateAuthTokens(ctx context.Context, user *domain.User)
 	}
 
 	err = u.repo.SaveRefreshToken(ctx, domain.RefreshToken{
-		UserID:    user.ID,
+		User:      *user,
 		Token:     helpers.HashSecret(refreshTokenString),
 		CreatedAt: createdAt,
 		ExpiresAt: createdAt.Add(time.Second * time.Duration(refreshTokenTTL)),
@@ -788,14 +888,6 @@ func hashPassword(ctx context.Context, password string) (string, error) {
 	}
 
 	return string(hashedPassword), nil
-}
-
-// verifyPassword returns nil if a password is successfully verified.
-func verifyPassword(ctx context.Context, passwordHash, password string) error {
-	_, span := telemetry.Trace(ctx, packageName, "verifyPassword")
-	defer span.End()
-
-	return bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(helpers.HashSecret(password)))
 }
 
 // checkPasswordIsBreached returns true is a password was found in a breach.

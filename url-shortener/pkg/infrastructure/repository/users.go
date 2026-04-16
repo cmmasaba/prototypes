@@ -155,3 +155,28 @@ func (r *Repository) GetUserByPublicID(ctx context.Context, publicID string) (*d
 		CreatedAt:       res.CreatedAt.Time,
 	}, nil
 }
+
+// LinkOAuthUser links the oauth details to an existing account by email
+func (r *Repository) LinkOAuthUser(ctx context.Context, email, oauthProvider, oauthProviderID string) (*domain.User, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "LinkOAuthUser")
+	defer span.End()
+
+	res, err := r.db.LinkOAuthUser(ctx, sqlc.LinkOAuthUserParams{
+		OauthProvider:   stringToPgtypeText(&oauthProvider),
+		OauthProviderID: stringToPgtypeText(&oauthProviderID),
+		Email:           email,
+	})
+	if err != nil {
+		telemetry.RecordError(span, err)
+
+		return nil, err
+	}
+
+	return &domain.User{
+		Email:           res.Email,
+		PublicID:        res.PublicID.String(),
+		OauthProvider:   pgtypeTextToString(res.OauthProvider),
+		OauthProviderID: pgtypeTextToString(res.OauthProviderID),
+		CreatedAt:       *timestamptzToTime(res.CreatedAt),
+	}, err
+}

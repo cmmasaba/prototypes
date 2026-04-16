@@ -16,7 +16,7 @@ func (r *Repository) SaveRefreshToken(ctx context.Context, input domain.RefreshT
 	defer span.End()
 
 	err := r.db.SaveRefreshToken(ctx, sqlc.SaveRefreshTokenParams{
-		UserID:    input.UserID,
+		UserID:    input.User.ID,
 		Token:     input.Token,
 		ExpiresAt: timeToTimestamptz(&input.ExpiresAt),
 		Revoked:   input.Revoked,
@@ -48,11 +48,12 @@ func (r *Repository) GetRefreshTokenByTokenHash(ctx context.Context, token strin
 	}
 
 	return &domain.RefreshToken{
-		ID:        res.ID,
-		UserID:    res.UserID,
+		User: domain.User{
+			ID:       res.ID,
+			PublicID: pgtypeUUIDToString(res.PublicID),
+		},
 		Token:     res.Token,
 		ExpiresAt: *timestamptzToTime(res.ExpiresAt),
-		CreatedAt: *timestamptzToTime(res.CreatedAt),
 		Revoked:   res.Revoked,
 	}, nil
 }

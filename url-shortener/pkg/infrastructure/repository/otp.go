@@ -17,7 +17,7 @@ func (r *Repository) CreateOTP(ctx context.Context, input *domain.OTP) error {
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateOTP")
 	defer span.End()
 
-	publicID, err := stringToPgtypeUUID(input.PublicID)
+	publicID, err := stringToPgtypeUUID(input.User.PublicID)
 	if err != nil {
 		slog.ErrorContext(ctx, err.Error(), "err", err)
 		telemetry.RecordError(span, err)
@@ -77,7 +77,12 @@ func (r *Repository) GetOTPByCodeAndUser(
 	}
 
 	return &domain.OTP{
-		PublicID:  pgtypeUUIDToString(res.UserPublicID),
+		User: domain.User{
+			ID:        res.ID,
+			PublicID:  pgtypeUUIDToString(res.PublicID),
+			Email:     res.Email,
+			CreatedAt: *timestamptzToTime(res.CreatedAt),
+		},
 		Revoked:   res.Revoked,
 		Code:      res.Code,
 		Purpose:   purpose,

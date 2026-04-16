@@ -61,10 +61,12 @@ func (p *Provider) GenerateOTP(ctx context.Context, userID string, purpose dto.O
 	}
 
 	err := p.repo.CreateOTP(ctx, &domain.OTP{
+		User: domain.User{
+			PublicID: userID,
+		},
 		Code:      helpers.HashSecret(b.String()),
 		ExpiresAt: time.Now().Add(otpTTL),
 		Revoked:   false,
-		PublicID:  userID,
 		Purpose:   purpose,
 	})
 	if err != nil {

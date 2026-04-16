@@ -65,3 +65,9 @@ type VerifyOTPInput struct {
 	Purpose OTPPurpose `json:"purpose" validate:"required"`
 	Value   string     `json:"value"   validate:"required"`
 }
+
+type RequestOTPInput struct {
+	UserPublicID string     `json:"user_id" validate:"required"`
+	Recipient    string     `json:"recipient" validate:"required"`
+	Purpose      OTPPurpose `json:"purpose" validate:"required"`
+}

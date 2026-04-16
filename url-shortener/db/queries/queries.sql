@@ -71,9 +71,12 @@ WHERE
 	id = $1;
 
 -- name: GetRefreshTokenByToken :one
-SELECT * FROM refresh_tokens
+SELECT u.id, u.public_id, r.token, r.expires_at, r.revoked
+FROM refresh_tokens AS r
+INNER JOIN users AS u
+ON r.user_id = u.id
 WHERE
-	token = $1;
+	r.token = $1;
 
 -- name: RevokeRefreshToken :exec
 UPDATE refresh_tokens
@@ -95,7 +98,10 @@ INSERT INTO otp (
 );
 
 -- name: GetOTPByCodeAndUserID :one
-SELECT code, user_public_id, revoked, expires_at FROM otp
+SELECT u.id, u.public_id, u.email, u.created_at, o.code, o.revoked, o.expires_at
+FROM otp AS o
+INNER JOIN users AS u
+ON o.user_public_id = u.public_id
 WHERE
 	user_public_id=$1 AND code=$2 AND purpose=$3
 LIMIT 1;
@@ -106,3 +112,20 @@ WHERE user_public_id=$1 AND purpose=$2 AND revoked=FALSE;
 
 -- name: RevokeAllRefreshTokensForUser :exec
 UPDATE refresh_tokens SET revoked = TRUE WHERE user_id=$1;
+
+-- name: LinkOAuthUser :one
+UPDATE users SET oauth_provider = $1, oauth_provider_id = $2
+WHERE email = $3
+RETURNING email, public_id, oauth_provider, oauth_provider_id, created_at;
+
+-- name: GetLoginAttempt :one
+SELECT fail_count, tier, locked_until, updated_at FROM login_attempts WHERE user_id=$1;
+
+-- name: UpsertLoginAttempt :exec
+INSERT INTO login_attempts (user_id, fail_count, tier, locked_until, updated_at)
+VALUES ($1, $2, $3, $4, NOW())
+ON CONFLICT (user_id) DO UPDATE SET
+fail_count=$2, tier=$3, locked_until=$4, updated_at=NOW();
+
+-- name: ResetLoginAttempts :exec
+DELETE FROM login_attempts WHERE user_id=$1;

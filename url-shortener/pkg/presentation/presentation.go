@@ -202,6 +202,11 @@ func SetupRoutes(
 					r.Post("/", handlers.VerifyOTP)
 				})
 
+				r.Route("/request-otp", func(r chi.Router) {
+					r.Use(httprate.LimitByIP(5, time.Minute*1))
+					r.Post("/", handlers.RequestNewOTP)
+				})
+
 				r.Route("/oauth/google", func(r chi.Router) {
 					r.Use(httprate.LimitByIP(10, time.Minute*1))
 					r.Post("/", handlers.InitGoogleOAuth)

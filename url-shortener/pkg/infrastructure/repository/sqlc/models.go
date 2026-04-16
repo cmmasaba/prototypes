@@ -34,6 +34,14 @@ type Link struct {
 	Active         bool
 }
 
+type LoginAttempt struct {
+	UserID      int64
+	FailCount   int32
+	Tier        int32
+	LockedUntil pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Otp struct {
 	ID           int64
 	UserPublicID pgtype.UUID

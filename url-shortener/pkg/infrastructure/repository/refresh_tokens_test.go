@@ -18,7 +18,9 @@ func TestRepository_SaveRefreshToken(t *testing.T) {
 		{
 			name: "happy case: save refresh token successful",
 			input: domain.RefreshToken{
-				UserID:    1,
+				User: domain.User{
+					ID: 1,
+				},
 				Token:     "dfcbd7c92a553992e5c1df63c71e979089d94c7bbcec63e2f4649dcb1e292e7b",
 				Revoked:   false,
 				CreatedAt: now,
@@ -29,7 +31,9 @@ func TestRepository_SaveRefreshToken(t *testing.T) {
 		{
 			name: "sad case: save refresh token failed",
 			input: domain.RefreshToken{
-				UserID:    100,
+				User: domain.User{
+					ID: 100,
+				},
 				Token:     "dfcbd7c92a553992e5c1df63c71e979089d94c7bbcec63e2f4649dcb1e293d5g",
 				Revoked:   false,
 				CreatedAt: now,

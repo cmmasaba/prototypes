@@ -486,6 +486,75 @@ func (_c *Mockusecases_RefreshAccessToken_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// RequestNewOTP provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) RequestNewOTP(ctx context.Context, publicUserID string, recipient string, purpose dto.OTPPurpose) error {
+	ret := _mock.Called(ctx, publicUserID, recipient, purpose)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RequestNewOTP")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, dto.OTPPurpose) error); ok {
+		r0 = returnFunc(ctx, publicUserID, recipient, purpose)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockusecases_RequestNewOTP_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RequestNewOTP'
+type Mockusecases_RequestNewOTP_Call struct {
+	*mock.Call
+}
+
+// RequestNewOTP is a helper method to define mock.On call
+//   - ctx context.Context
+//   - publicUserID string
+//   - recipient string
+//   - purpose dto.OTPPurpose
+func (_e *Mockusecases_Expecter) RequestNewOTP(ctx interface{}, publicUserID interface{}, recipient interface{}, purpose interface{}) *Mockusecases_RequestNewOTP_Call {
+	return &Mockusecases_RequestNewOTP_Call{Call: _e.mock.On("RequestNewOTP", ctx, publicUserID, recipient, purpose)}
+}
+
+func (_c *Mockusecases_RequestNewOTP_Call) Run(run func(ctx context.Context, publicUserID string, recipient string, purpose dto.OTPPurpose)) *Mockusecases_RequestNewOTP_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 dto.OTPPurpose
+		if args[3] != nil {
+			arg3 = args[3].(dto.OTPPurpose)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_RequestNewOTP_Call) Return(err error) *Mockusecases_RequestNewOTP_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockusecases_RequestNewOTP_Call) RunAndReturn(run func(ctx context.Context, publicUserID string, recipient string, purpose dto.OTPPurpose) error) *Mockusecases_RequestNewOTP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ValidatePasswordStrength provides a mock function for the type Mockusecases
 func (_mock *Mockusecases) ValidatePasswordStrength(ctx context.Context, input *dto.ValidatePasswordInput) bool {
 	ret := _mock.Called(ctx, input)

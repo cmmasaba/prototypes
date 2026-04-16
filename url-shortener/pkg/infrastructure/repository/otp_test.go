@@ -19,7 +19,9 @@ func TestRepository_CreateOTP(t *testing.T) {
 		{
 			name: "happy case: create otp successful",
 			input: &domain.OTP{
-				PublicID:  "019d402e-4075-731a-ba42-0432d5cdef99",
+				User: domain.User{
+					PublicID: "019d402e-4075-731a-ba42-0432d5ced9",
+				},
 				Code:      "d1f7f5986d849521ca17b46d834c3c2f5ecf611047640ed69b6e1859894b366b",
 				ExpiresAt: now.Add(15 * time.Minute),
 				Revoked:   false,
@@ -30,7 +32,9 @@ func TestRepository_CreateOTP(t *testing.T) {
 		{
 			name: "sad case: create otp failed - unknown purpose",
 			input: &domain.OTP{
-				PublicID:  "019d402e-4075-731a-ba42-0432d5cdef99",
+				User: domain.User{
+					PublicID: "019d402e-4075-731a-ba42-0432d5ced9",
+				},
 				Code:      "d1f7f5986d849521ca17b46d834c3c2f5ecf611047640ed69b6e1859894b366b",
 				ExpiresAt: now.Add(15 * time.Minute),
 				Revoked:   false,
@@ -41,7 +45,9 @@ func TestRepository_CreateOTP(t *testing.T) {
 		{
 			name: "sad case: create otp failed - invalid public id",
 			input: &domain.OTP{
-				PublicID:  "019d402e-4075-731a-ba42-0432d5ced9",
+				User: domain.User{
+					PublicID: "019d402e-4075-731a-ba42-0432d5ced9",
+				},
 				Code:      "d1f7f5986d849521ca17b46d834c3c2f5ecf611047640ed69b6e1859894b366b",
 				ExpiresAt: now.Add(15 * time.Minute),
 				Revoked:   false,

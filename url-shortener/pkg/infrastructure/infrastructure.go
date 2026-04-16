@@ -25,23 +25,19 @@ type Infrastructure struct {
 }
 
 func New(redisClient *redis.Client) (*Infrastructure, error) {
-	user := helpers.MustGetEnvVar("POSTGRES_USER")
-	password := helpers.MustGetEnvVar("POSTGRES_PASSWORD")
-	host := helpers.MustGetEnvVar("POSTGRES_HOST")
-	port := helpers.MustGetEnvVar("POSTGRES_PORT")
-	sslmode := helpers.MustGetEnvVar("POSTGRES_SSLMODE")
-	db := helpers.MustGetEnvVar("POSTGRES_DB")
+	cache := cache.New(redisClient)
+
 	connString := fmt.Sprintf(
 		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
-		user,
-		password,
-		host,
-		port,
-		db,
-		sslmode,
+		helpers.MustGetEnvVar("POSTGRES_USER"),
+		helpers.MustGetEnvVar("POSTGRES_PASSWORD"),
+		helpers.MustGetEnvVar("POSTGRES_HOST"),
+		helpers.MustGetEnvVar("POSTGRES_PORT"),
+		helpers.MustGetEnvVar("POSTGRES_DB"),
+		helpers.MustGetEnvVar("POSTGRES_SSLMODE"),
 	)
 
-	database, err := repository.New(connString)
+	database, err := repository.New(connString, cache)
 	if err != nil {
 		slog.Error("initialize db repository failed", "err", err)
 
@@ -68,8 +64,6 @@ func New(redisClient *redis.Client) (*Infrastructure, error) {
 
 		return nil, err
 	}
-
-	cache := cache.New(redisClient)
 
 	otp := otp.New(database)
 

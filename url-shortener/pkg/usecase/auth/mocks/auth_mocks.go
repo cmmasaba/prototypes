@@ -109,6 +109,74 @@ func (_c *Mockrepo_CreateUser_Call) RunAndReturn(run func(ctx context.Context, i
 	return _c
 }
 
+// GetLoginAttempt provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) GetLoginAttempt(ctx context.Context, userID int64) (*domain.LoginAttempt, error) {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLoginAttempt")
+	}
+
+	var r0 *domain.LoginAttempt
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (*domain.LoginAttempt, error)); ok {
+		return returnFunc(ctx, userID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) *domain.LoginAttempt); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.LoginAttempt)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockrepo_GetLoginAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLoginAttempt'
+type Mockrepo_GetLoginAttempt_Call struct {
+	*mock.Call
+}
+
+// GetLoginAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID int64
+func (_e *Mockrepo_Expecter) GetLoginAttempt(ctx interface{}, userID interface{}) *Mockrepo_GetLoginAttempt_Call {
+	return &Mockrepo_GetLoginAttempt_Call{Call: _e.mock.On("GetLoginAttempt", ctx, userID)}
+}
+
+func (_c *Mockrepo_GetLoginAttempt_Call) Run(run func(ctx context.Context, userID int64)) *Mockrepo_GetLoginAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_GetLoginAttempt_Call) Return(loginAttempt *domain.LoginAttempt, err error) *Mockrepo_GetLoginAttempt_Call {
+	_c.Call.Return(loginAttempt, err)
+	return _c
+}
+
+func (_c *Mockrepo_GetLoginAttempt_Call) RunAndReturn(run func(ctx context.Context, userID int64) (*domain.LoginAttempt, error)) *Mockrepo_GetLoginAttempt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetRefreshTokenByTokenHash provides a mock function for the type Mockrepo
 func (_mock *Mockrepo) GetRefreshTokenByTokenHash(ctx context.Context, token string) (*domain.RefreshToken, error) {
 	ret := _mock.Called(ctx, token)
@@ -455,6 +523,143 @@ func (_c *Mockrepo_GetUserByPublicID_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// LinkOAuthUser provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) LinkOAuthUser(ctx context.Context, email string, oauthProvider string, oauthProviderID string) (*domain.User, error) {
+	ret := _mock.Called(ctx, email, oauthProvider, oauthProviderID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for LinkOAuthUser")
+	}
+
+	var r0 *domain.User
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) (*domain.User, error)); ok {
+		return returnFunc(ctx, email, oauthProvider, oauthProviderID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string) *domain.User); ok {
+		r0 = returnFunc(ctx, email, oauthProvider, oauthProviderID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*domain.User)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string) error); ok {
+		r1 = returnFunc(ctx, email, oauthProvider, oauthProviderID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockrepo_LinkOAuthUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LinkOAuthUser'
+type Mockrepo_LinkOAuthUser_Call struct {
+	*mock.Call
+}
+
+// LinkOAuthUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - email string
+//   - oauthProvider string
+//   - oauthProviderID string
+func (_e *Mockrepo_Expecter) LinkOAuthUser(ctx interface{}, email interface{}, oauthProvider interface{}, oauthProviderID interface{}) *Mockrepo_LinkOAuthUser_Call {
+	return &Mockrepo_LinkOAuthUser_Call{Call: _e.mock.On("LinkOAuthUser", ctx, email, oauthProvider, oauthProviderID)}
+}
+
+func (_c *Mockrepo_LinkOAuthUser_Call) Run(run func(ctx context.Context, email string, oauthProvider string, oauthProviderID string)) *Mockrepo_LinkOAuthUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_LinkOAuthUser_Call) Return(user *domain.User, err error) *Mockrepo_LinkOAuthUser_Call {
+	_c.Call.Return(user, err)
+	return _c
+}
+
+func (_c *Mockrepo_LinkOAuthUser_Call) RunAndReturn(run func(ctx context.Context, email string, oauthProvider string, oauthProviderID string) (*domain.User, error)) *Mockrepo_LinkOAuthUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResetLoginAttempts provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) ResetLoginAttempts(ctx context.Context, userID int64) error {
+	ret := _mock.Called(ctx, userID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResetLoginAttempts")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, userID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockrepo_ResetLoginAttempts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetLoginAttempts'
+type Mockrepo_ResetLoginAttempts_Call struct {
+	*mock.Call
+}
+
+// ResetLoginAttempts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID int64
+func (_e *Mockrepo_Expecter) ResetLoginAttempts(ctx interface{}, userID interface{}) *Mockrepo_ResetLoginAttempts_Call {
+	return &Mockrepo_ResetLoginAttempts_Call{Call: _e.mock.On("ResetLoginAttempts", ctx, userID)}
+}
+
+func (_c *Mockrepo_ResetLoginAttempts_Call) Run(run func(ctx context.Context, userID int64)) *Mockrepo_ResetLoginAttempts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_ResetLoginAttempts_Call) Return(err error) *Mockrepo_ResetLoginAttempts_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockrepo_ResetLoginAttempts_Call) RunAndReturn(run func(ctx context.Context, userID int64) error) *Mockrepo_ResetLoginAttempts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // RevokeAllRefreshTokensForUser provides a mock function for the type Mockrepo
 func (_mock *Mockrepo) RevokeAllRefreshTokensForUser(ctx context.Context, userID int64) error {
 	ret := _mock.Called(ctx, userID)
@@ -622,6 +827,81 @@ func (_c *Mockrepo_SaveRefreshToken_Call) Return(err error) *Mockrepo_SaveRefres
 }
 
 func (_c *Mockrepo_SaveRefreshToken_Call) RunAndReturn(run func(ctx context.Context, input domain.RefreshToken) error) *Mockrepo_SaveRefreshToken_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateLoginAttempt provides a mock function for the type Mockrepo
+func (_mock *Mockrepo) UpdateLoginAttempt(ctx context.Context, userID int64, failCount int, tier int, lockedUntil *time.Time) error {
+	ret := _mock.Called(ctx, userID, failCount, tier, lockedUntil)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateLoginAttempt")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, int, int, *time.Time) error); ok {
+		r0 = returnFunc(ctx, userID, failCount, tier, lockedUntil)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// Mockrepo_UpdateLoginAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateLoginAttempt'
+type Mockrepo_UpdateLoginAttempt_Call struct {
+	*mock.Call
+}
+
+// UpdateLoginAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID int64
+//   - failCount int
+//   - tier int
+//   - lockedUntil *time.Time
+func (_e *Mockrepo_Expecter) UpdateLoginAttempt(ctx interface{}, userID interface{}, failCount interface{}, tier interface{}, lockedUntil interface{}) *Mockrepo_UpdateLoginAttempt_Call {
+	return &Mockrepo_UpdateLoginAttempt_Call{Call: _e.mock.On("UpdateLoginAttempt", ctx, userID, failCount, tier, lockedUntil)}
+}
+
+func (_c *Mockrepo_UpdateLoginAttempt_Call) Run(run func(ctx context.Context, userID int64, failCount int, tier int, lockedUntil *time.Time)) *Mockrepo_UpdateLoginAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 *time.Time
+		if args[4] != nil {
+			arg4 = args[4].(*time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockrepo_UpdateLoginAttempt_Call) Return(err error) *Mockrepo_UpdateLoginAttempt_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *Mockrepo_UpdateLoginAttempt_Call) RunAndReturn(run func(ctx context.Context, userID int64, failCount int, tier int, lockedUntil *time.Time) error) *Mockrepo_UpdateLoginAttempt_Call {
 	_c.Call.Return(run)
 	return _c
 }

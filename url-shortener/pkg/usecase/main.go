@@ -62,3 +62,7 @@ func (u *Usecase) OAuthFlowCallback(ctx context.Context, origin, code string) (*
 func (u *Usecase) Logout(ctx context.Context) error {
 	return u.auth.Logout(ctx)
 }
+
+func (u *Usecase) RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error {
+	return u.auth.RequestNewOTP(ctx, publicUserID, recipient, purpose)
+}

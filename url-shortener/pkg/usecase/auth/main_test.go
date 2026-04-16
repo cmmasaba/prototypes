@@ -690,7 +690,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Now().Add(3 * time.Minute),
 					Revoked:   false,
 				}, nil)
@@ -722,7 +724,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Now().Add(3 * time.Minute),
 					Revoked:   true,
 				}, nil)
@@ -737,7 +741,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Date(2026, 0o1, 0o1, 11, 30, 23, 46, time.UTC),
 					Revoked:   false,
 				}, nil)
@@ -752,7 +758,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Now().Add(3 * time.Minute),
 					Revoked:   false,
 				}, nil)
@@ -768,7 +776,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Now().Add(3 * time.Minute),
 					Revoked:   false,
 				}, nil)
@@ -788,7 +798,9 @@ func TestUsecaseImpl_RefreshAccessToken(t *testing.T) {
 				ctx := context.Background()
 
 				repo.EXPECT().GetRefreshTokenByTokenHash(mock.Anything, mock.Anything).Return(&domain.RefreshToken{
-					UserID:    1,
+					User: domain.User{
+						ID: 1,
+					},
 					ExpiresAt: time.Now().Add(3 * time.Minute),
 					Revoked:   false,
 				}, nil)
@@ -857,7 +869,11 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 				otp.EXPECT().
 					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID:  publicID,
+						User: domain.User{
+							ID:       int64(userID),
+							PublicID: publicID,
+							Email:    email,
+						},
 						Code:      code,
 						Revoked:   false,
 						ExpiresAt: time.Now().Add(5 * time.Minute),
@@ -884,7 +900,11 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 				otp.EXPECT().
 					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID:  publicID,
+						User: domain.User{
+							ID:       int64(userID),
+							PublicID: publicID,
+							Email:    email,
+						},
 						Code:      code,
 						Revoked:   false,
 						ExpiresAt: time.Now().Add(5 * time.Minute),
@@ -911,7 +931,11 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 				otp.EXPECT().
 					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID:  publicID,
+						User: domain.User{
+							ID:       int64(userID),
+							PublicID: publicID,
+							Email:    email,
+						},
 						Code:      code,
 						Revoked:   false,
 						ExpiresAt: time.Now().Add(5 * time.Minute),
@@ -938,7 +962,11 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 				otp.EXPECT().
 					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID:  publicID,
+						User: domain.User{
+							ID:       int64(userID),
+							PublicID: publicID,
+							Email:    email,
+						},
 						Code:      code,
 						Revoked:   false,
 						ExpiresAt: time.Date(2026, 0o1, 0o1, 11, 30, 45, 98, time.UTC),
@@ -963,7 +991,11 @@ func TestUsecaseImpl_VerifyOTP(t *testing.T) {
 				otp.EXPECT().
 					GetOTPByCodeAndUserID(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(&domain.OTP{
-						PublicID:  publicID,
+						User: domain.User{
+							ID:       int64(userID),
+							PublicID: publicID,
+							Email:    email,
+						},
 						Code:      code,
 						Revoked:   true,
 						ExpiresAt: time.Now().Add(5 * time.Minute),

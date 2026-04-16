@@ -39,6 +39,7 @@ type usecases interface {
 	OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, error)
 	InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error)
 	Logout(ctx context.Context) error
+	RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error
 }
 
 type Handlers struct {
@@ -398,4 +399,23 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(map[string]string{"status": "logged_out"}); err != nil {
 		telemetry.RecordError(span, err)
 	}
+}
+
+func (h *Handlers) RequestNewOTP(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "RequestNewOTP")
+	defer span.End()
+
+	input, ok := decodeAndValidate[dto.RequestOTPInput](ctx, r, w)
+	if !ok {
+		return
+	}
+
+	if err := h.usecases.RequestNewOTP(ctx, input.UserPublicID, input.Recipient, input.Purpose); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
