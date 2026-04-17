@@ -1,20 +1,20 @@
 -- name: SaveShortLink :one
 INSERT INTO links (
-	user_id, short_code, original_url, ownership_token, expires_at
+	public_user_id, short_code, original_url, ownership_token, expires_at
 ) VALUES (
 	$1, $2, $3, $4, $5
 )
 RETURNING *;
 
 -- name: GetShortLinkByCode :one
-SELECT id, user_id, short_code, original_url, ownership_token FROM links
+SELECT id, public_user_id, short_code, original_url, ownership_token FROM links
 WHERE
 	short_code = $1;
 
 -- name: GetExpiredShortLinkByUserID :many
-SELECT id, user_id, short_code, original_url, ownership_token FROM links
+SELECT id, public_user_id, short_code, original_url, ownership_token FROM links
 WHERE
-	user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
+	public_user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
 ORDER BY created_at
 LIMIT 50;
 

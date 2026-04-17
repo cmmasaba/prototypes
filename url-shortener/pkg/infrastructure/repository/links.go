@@ -71,11 +71,18 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 	ctx, span := telemetry.Trace(ctx, packageName, "CreateShortLink")
 	defer span.End()
 
+	publicID, err := stringToPgtypeUUID(data.UserID)
+	if err != nil {
+		telemetry.RecordError(span, err)
+
+		return nil, err
+	}
+
 	res, err := r.db.SaveShortLink(ctx, sqlc.SaveShortLinkParams{
-		UserID:         data.UserID,
+		PublicUserID:   publicID,
 		ShortCode:      data.ShortCode,
 		OriginalUrl:    data.OriginalURL,
-		OwnershipToken: data.OwnershipToken,
+		OwnershipToken: stringToPgtypeText(data.OwnershipToken),
 		ExpiresAt:      timeToTimestamptz(data.ExpiresAt),
 	})
 	if err != nil {
@@ -86,10 +93,10 @@ func (r *Repository) CreateShortLink(ctx context.Context, data domain.Link) (*do
 
 	return &domain.Link{
 		ID:             res.ID,
-		UserID:         res.UserID,
+		UserID:         pgtypeUUIDToString(res.PublicUserID),
 		ShortCode:      res.ShortCode,
 		OriginalURL:    res.OriginalUrl,
-		OwnershipToken: res.OwnershipToken,
+		OwnershipToken: pgtypeTextToString(res.OwnershipToken),
 	}, nil
 }
 
@@ -111,9 +118,9 @@ func (r *Repository) GetLinkByCode(ctx context.Context, code string) (*domain.Li
 
 	return &domain.Link{
 		ID:             res.ID,
-		UserID:         res.UserID,
+		UserID:         pgtypeUUIDToString(res.PublicUserID),
 		ShortCode:      res.ShortCode,
 		OriginalURL:    res.OriginalUrl,
-		OwnershipToken: res.OwnershipToken,
+		OwnershipToken: pgtypeTextToString(res.OwnershipToken),
 	}, nil
 }

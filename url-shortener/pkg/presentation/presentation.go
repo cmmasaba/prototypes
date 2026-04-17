@@ -233,6 +233,12 @@ func SetupRoutes(
 				})
 			})
 
+			r.Route("/shorten", func(r chi.Router) {
+				r.Use(OptionalAuthMiddleware(auth))
+
+				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
+			})
+
 			r.Route("/links", func(r chi.Router) {
 				r.Use(AuthMiddleware(auth))
 				r.Use(CSRFMiddleware())

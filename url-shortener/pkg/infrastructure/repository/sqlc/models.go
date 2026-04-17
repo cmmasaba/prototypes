@@ -25,10 +25,10 @@ type Click struct {
 
 type Link struct {
 	ID             int64
-	UserID         int64
+	PublicUserID   pgtype.UUID
 	ShortCode      string
 	OriginalUrl    string
-	OwnershipToken string
+	OwnershipToken pgtype.Text
 	CreatedAt      pgtype.Timestamptz
 	ExpiresAt      pgtype.Timestamptz
 	Active         bool

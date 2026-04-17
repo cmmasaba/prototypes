@@ -9,10 +9,10 @@ import (
 
 type Link struct {
 	ID             int64
-	UserID         int64
+	UserID         string
 	ShortCode      string
 	OriginalURL    string
-	OwnershipToken string
+	OwnershipToken *string
 	CreatedAt      time.Time
 	ExpiresAt      *time.Time
 }

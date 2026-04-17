@@ -3,6 +3,8 @@ package dto
 
 import "time"
 
+const AnonymousUserID = "anonymous-user"
+
 type EmailPasswordUserInput struct {
 	Email    string `json:"email"    validate:"required"`
 	Password string `json:"password" validate:"required,min=8,max=128"` // nolint: gosec
@@ -70,4 +72,14 @@ type RequestOTPInput struct {
 	UserPublicID string     `json:"user_id" validate:"required"`
 	Recipient    string     `json:"recipient" validate:"required"`
 	Purpose      OTPPurpose `json:"purpose" validate:"required"`
+}
+
+type ShortenURLInput struct {
+	URL       string    `json:"url" validate:"required"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type ShortenURLResponse struct {
+	ShortURL       string `json:"short_url"`
+	OwnershipToken string `json:"ownership_token,omitempty"`
 }

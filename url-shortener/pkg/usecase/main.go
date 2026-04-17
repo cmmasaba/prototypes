@@ -7,11 +7,13 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/healthcheck"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/shortener"
 )
 
 type Usecase struct {
-	health *healthcheck.UsecaseImpl
-	auth   *auth.UsecaseImpl
+	health    *healthcheck.UsecaseImpl
+	auth      *auth.UsecaseImpl
+	shortener *shortener.UsecaseImpl
 }
 
 func New(health *healthcheck.UsecaseImpl, auth *auth.UsecaseImpl) *Usecase {
@@ -65,4 +67,8 @@ func (u *Usecase) Logout(ctx context.Context) error {
 
 func (u *Usecase) RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error {
 	return u.auth.RequestNewOTP(ctx, publicUserID, recipient, purpose)
+}
+
+func (u *Usecase) ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error) {
+	return u.shortener.ShortenURL(ctx, input)
 }

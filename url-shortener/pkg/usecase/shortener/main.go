@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/url"
 	"strings"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/cmmasaba/prototypes/telemetry"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/infrastructure/repository"
 )
 
@@ -23,9 +26,11 @@ const (
 )
 
 var (
-	errInvalidURIFormat = errors.New("invalid url string provided")
-	errURLTooLong       = errors.New("url length exceeds maximum length of 2048 characters")
+	ErrInvalidURIFormat = errors.New("invalid url string provided")
+	ErrURLTooLong       = errors.New("url length exceeds maximum length of 2048 characters")
 	errInternalError    = errors.New("internal error")
+
+	serviceURL = helpers.MustGetEnvVar("SERVICE_BASE_URL")
 )
 
 type repo interface {
@@ -38,7 +43,7 @@ type cache interface {
 	Set(ctx context.Context, key string, value any, expiration time.Duration) error
 }
 
-type Shortener struct {
+type UsecaseImpl struct {
 	repo  repo
 	cache cache
 }
@@ -65,32 +70,46 @@ func base62Encode(n uint64) string {
 	return string(result)
 }
 
-func New(repo repo, cache cache) *Shortener {
-	return &Shortener{
+// New returns an instance of *[UsecaseImpl]
+func New(repo repo, cache cache) *UsecaseImpl {
+	return &UsecaseImpl{
 		repo:  repo,
 		cache: cache,
 	}
 }
 
-func (s *Shortener) ShortenURL(ctx context.Context, rawURL string) (*domain.Link, error) {
-	ctx, span := telemetry.Trace(ctx, packageName, "ShortenURL")
-	defer span.End()
-
-	charCount := utf8.RuneCountInString(rawURL)
-
-	if charCount > 2048 {
-		telemetry.RecordError(span, errURLTooLong)
-		slog.ErrorContext(ctx, "url length exceeds maximum length", "length", charCount, "rawURL", rawURL)
-
-		return nil, errURLTooLong
+func validateURL(rawURL string) error {
+	if utf8.RuneCountInString(rawURL) > 2048 {
+		return ErrURLTooLong
 	}
 
 	u, err := url.ParseRequestURI(rawURL)
-	if err != nil || u.Host == "" {
-		telemetry.RecordError(span, errInvalidURIFormat)
-		slog.ErrorContext(ctx, "invalid url format", "rawURL", rawURL)
+	if err != nil || u.Host == "" || u.Scheme == "" {
+		return ErrInvalidURIFormat
+	}
 
-		return nil, errInvalidURIFormat
+	return nil
+}
+
+// ShortenURL returns *[dto.ShortenURLResponse] and a nil error on success.
+func (s *UsecaseImpl) ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "ShortenURL")
+	defer span.End()
+
+	err := validateURL(input.URL)
+	if err != nil {
+		telemetry.RecordError(span, err)
+		slog.ErrorContext(ctx, "url validation failed", "rawURL", input.URL)
+
+		return nil, err
+	}
+
+	user, ok := helpers.GetUserIDCtx(ctx)
+	if !ok {
+		telemetry.RecordError(span, fmt.Errorf("get user from context failed"))
+		slog.ErrorContext(ctx, "get user from context failed", "rawURL", input.URL)
+
+		return nil, errInternalError
 	}
 
 	for range 5 {
@@ -114,10 +133,31 @@ func (s *Shortener) ShortenURL(ctx context.Context, rawURL string) (*domain.Link
 			continue
 		}
 
-		link, err := s.repo.CreateShortLink(ctx, domain.Link{
-			ShortCode:   code,
-			OriginalURL: rawURL,
-		})
+		var data domain.Link
+
+		if user == dto.AnonymousUserID {
+			ownershipToken := helpers.HashSecret(code)
+
+			data = domain.Link{
+				ShortCode:      code,
+				OriginalURL:    input.URL,
+				OwnershipToken: &ownershipToken,
+			}
+		} else {
+			data = domain.Link{
+				ShortCode:   code,
+				UserID:      user,
+				OriginalURL: input.URL,
+			}
+
+			if input.ExpiresAt.IsZero() {
+				data.ExpiresAt = nil
+			} else {
+				data.ExpiresAt = &input.ExpiresAt
+			}
+		}
+
+		link, err := s.repo.CreateShortLink(ctx, data)
 		if err != nil {
 			telemetry.RecordError(span, err)
 			slog.ErrorContext(ctx, "save short code failed", "err", err)
@@ -125,13 +165,23 @@ func (s *Shortener) ShortenURL(ctx context.Context, rawURL string) (*domain.Link
 			return nil, errInternalError
 		}
 
-		return link, nil
+		resp := &dto.ShortenURLResponse{
+			ShortURL: fmt.Sprintf("%s/%s", serviceURL, link.ShortCode),
+		}
+
+		if link.OwnershipToken == nil {
+			resp.OwnershipToken = ""
+		} else {
+			resp.OwnershipToken = *link.OwnershipToken
+		}
+
+		return resp, nil
 	}
 
 	return nil, errInternalError
 }
 
-func (s *Shortener) DecodeURL(ctx context.Context) {
+func (s *UsecaseImpl) DecodeURL(ctx context.Context) {
 	_, span := telemetry.Trace(ctx, packageName, "DecodeURL")
 	defer span.End()
 }

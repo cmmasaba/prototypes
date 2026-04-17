@@ -13,6 +13,7 @@ import (
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/dto"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/helpers"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/auth"
+	"github.com/cmmasaba/prototypes/urlshortener/pkg/usecase/shortener"
 )
 
 const (
@@ -40,6 +41,7 @@ type usecases interface {
 	InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error)
 	Logout(ctx context.Context) error
 	RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error
+	ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error)
 }
 
 type Handlers struct {
@@ -418,4 +420,34 @@ func (h *Handlers) RequestNewOTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+}
+
+// ShortenURL performs url shortening and returns 200 on success
+func (h *Handlers) ShortenURL(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "ShortenURL")
+	defer span.End()
+
+	input, ok := decodeAndValidate[dto.ShortenURLInput](ctx, r, w)
+	if !ok {
+		return
+	}
+
+	resp, err := h.usecases.ShortenURL(ctx, input)
+	if err != nil {
+		if errors.Is(err, shortener.ErrInvalidURIFormat) || errors.Is(err, shortener.ErrURLTooLong) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	err = json.NewEncoder(w).Encode(resp)
+	if err != nil {
+		telemetry.RecordError(span, err)
+	}
 }

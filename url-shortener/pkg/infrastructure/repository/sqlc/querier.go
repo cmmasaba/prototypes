@@ -14,7 +14,7 @@ type Querier interface {
 	CreateOTP(ctx context.Context, arg CreateOTPParams) error
 	GetClicksByLinkIDAndClickedAt(ctx context.Context, arg GetClicksByLinkIDAndClickedAtParams) ([]Click, error)
 	GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicksByLinkIDAndCountryParams) ([]Click, error)
-	GetExpiredShortLinkByUserID(ctx context.Context, userID int64) ([]GetExpiredShortLinkByUserIDRow, error)
+	GetExpiredShortLinkByUserID(ctx context.Context, publicUserID pgtype.UUID) ([]GetExpiredShortLinkByUserIDRow, error)
 	GetLoginAttempt(ctx context.Context, userID int64) (GetLoginAttemptRow, error)
 	GetOTPByCodeAndUserID(ctx context.Context, arg GetOTPByCodeAndUserIDParams) (GetOTPByCodeAndUserIDRow, error)
 	GetRefreshTokenByToken(ctx context.Context, token string) (GetRefreshTokenByTokenRow, error)

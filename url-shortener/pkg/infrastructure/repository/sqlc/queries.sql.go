@@ -131,23 +131,23 @@ func (q *Queries) GetClicksByLinkIDAndCountry(ctx context.Context, arg GetClicks
 }
 
 const getExpiredShortLinkByUserID = `-- name: GetExpiredShortLinkByUserID :many
-SELECT id, user_id, short_code, original_url, ownership_token FROM links
+SELECT id, public_user_id, short_code, original_url, ownership_token FROM links
 WHERE
-	user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
+	public_user_id=$1 AND expires_at IS NOT NULL AND expires_at < NOW()
 ORDER BY created_at
 LIMIT 50
 `
 
 type GetExpiredShortLinkByUserIDRow struct {
 	ID             int64
-	UserID         int64
+	PublicUserID   pgtype.UUID
 	ShortCode      string
 	OriginalUrl    string
-	OwnershipToken string
+	OwnershipToken pgtype.Text
 }
 
-func (q *Queries) GetExpiredShortLinkByUserID(ctx context.Context, userID int64) ([]GetExpiredShortLinkByUserIDRow, error) {
-	rows, err := q.db.Query(ctx, getExpiredShortLinkByUserID, userID)
+func (q *Queries) GetExpiredShortLinkByUserID(ctx context.Context, publicUserID pgtype.UUID) ([]GetExpiredShortLinkByUserIDRow, error) {
+	rows, err := q.db.Query(ctx, getExpiredShortLinkByUserID, publicUserID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (q *Queries) GetExpiredShortLinkByUserID(ctx context.Context, userID int64)
 		var i GetExpiredShortLinkByUserIDRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
+			&i.PublicUserID,
 			&i.ShortCode,
 			&i.OriginalUrl,
 			&i.OwnershipToken,
@@ -267,17 +267,17 @@ func (q *Queries) GetRefreshTokenByToken(ctx context.Context, token string) (Get
 }
 
 const getShortLinkByCode = `-- name: GetShortLinkByCode :one
-SELECT id, user_id, short_code, original_url, ownership_token FROM links
+SELECT id, public_user_id, short_code, original_url, ownership_token FROM links
 WHERE
 	short_code = $1
 `
 
 type GetShortLinkByCodeRow struct {
 	ID             int64
-	UserID         int64
+	PublicUserID   pgtype.UUID
 	ShortCode      string
 	OriginalUrl    string
-	OwnershipToken string
+	OwnershipToken pgtype.Text
 }
 
 func (q *Queries) GetShortLinkByCode(ctx context.Context, shortCode string) (GetShortLinkByCodeRow, error) {
@@ -285,7 +285,7 @@ func (q *Queries) GetShortLinkByCode(ctx context.Context, shortCode string) (Get
 	var i GetShortLinkByCodeRow
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
+		&i.PublicUserID,
 		&i.ShortCode,
 		&i.OriginalUrl,
 		&i.OwnershipToken,
@@ -547,24 +547,24 @@ func (q *Queries) SaveRefreshToken(ctx context.Context, arg SaveRefreshTokenPara
 
 const saveShortLink = `-- name: SaveShortLink :one
 INSERT INTO links (
-	user_id, short_code, original_url, ownership_token, expires_at
+	public_user_id, short_code, original_url, ownership_token, expires_at
 ) VALUES (
 	$1, $2, $3, $4, $5
 )
-RETURNING id, user_id, short_code, original_url, ownership_token, created_at, expires_at, active
+RETURNING id, public_user_id, short_code, original_url, ownership_token, created_at, expires_at, active
 `
 
 type SaveShortLinkParams struct {
-	UserID         int64
+	PublicUserID   pgtype.UUID
 	ShortCode      string
 	OriginalUrl    string
-	OwnershipToken string
+	OwnershipToken pgtype.Text
 	ExpiresAt      pgtype.Timestamptz
 }
 
 func (q *Queries) SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (Link, error) {
 	row := q.db.QueryRow(ctx, saveShortLink,
-		arg.UserID,
+		arg.PublicUserID,
 		arg.ShortCode,
 		arg.OriginalUrl,
 		arg.OwnershipToken,
@@ -573,7 +573,7 @@ func (q *Queries) SaveShortLink(ctx context.Context, arg SaveShortLinkParams) (L
 	var i Link
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
+		&i.PublicUserID,
 		&i.ShortCode,
 		&i.OriginalUrl,
 		&i.OwnershipToken,

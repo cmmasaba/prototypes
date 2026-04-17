@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/brianvoe/gofakeit"
 	"github.com/cmmasaba/prototypes/urlshortener/pkg/application/domain"
 	"github.com/jxskiss/base62"
 )
@@ -27,10 +28,10 @@ func TestRepository_CreateShortLink(t *testing.T) {
 			name: "happy case: create short link successful - no expiry",
 			args: args{
 				input: domain.Link{
-					UserID:         1,
+					UserID:         gofakeit.UUID(),
 					ShortCode:      base62.EncodeToString([]byte(url)),
 					OriginalURL:    url,
-					OwnershipToken: token,
+					OwnershipToken: &token,
 					CreatedAt:      now,
 				},
 			},
@@ -40,10 +41,10 @@ func TestRepository_CreateShortLink(t *testing.T) {
 			name: "happy case: create short link successful - with expiry",
 			args: args{
 				input: domain.Link{
-					UserID:         1,
+					UserID:         gofakeit.UUID(),
 					ShortCode:      base62.EncodeToString([]byte(url)),
 					OriginalURL:    url,
-					OwnershipToken: token,
+					OwnershipToken: &token,
 					CreatedAt:      now,
 					ExpiresAt:      &expiry,
 				},
@@ -54,10 +55,10 @@ func TestRepository_CreateShortLink(t *testing.T) {
 			name: "sad case: create short link failed",
 			args: args{
 				input: domain.Link{
-					UserID:         3,
+					UserID:         gofakeit.UUID(),
 					ShortCode:      base62.EncodeToString([]byte(url)),
 					OriginalURL:    url,
-					OwnershipToken: token,
+					OwnershipToken: &token,
 					CreatedAt:      now,
 				},
 			},
