@@ -222,3 +222,80 @@ func TestShortener_ShortenURL(t *testing.T) {
 		})
 	}
 }
+
+func TestUsecaseImpl_GetOriginalURL(t *testing.T) {
+	type args struct {
+		code string
+	}
+
+	tests := []struct {
+		name    string
+		setup   func(repo *mocks.Mockrepo, cache *mocks.Mockcache) args
+		wantErr bool
+	}{
+		{
+			name: "sad case: cache miss and database error",
+			setup: func(repo *mocks.Mockrepo, cache *mocks.Mockcache) args {
+				cache.EXPECT().Get(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("error occurred"))
+				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("error occurred"))
+
+				return args{code: "AAXXcys"}
+			},
+			wantErr: true,
+		},
+		{
+			name: "sad case: cache miss and cache set error",
+			setup: func(repo *mocks.Mockrepo, cache *mocks.Mockcache) args {
+				cache.EXPECT().Get(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("error occurred"))
+				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(&domain.Link{}, nil)
+				cache.EXPECT().Set(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("error occurred"))
+
+				return args{code: "AAXXcys"}
+			},
+			wantErr: false,
+		},
+		{
+			name: "sad case: cache hit and json decoding error",
+			setup: func(_ *mocks.Mockrepo, cache *mocks.Mockcache) args {
+				cache.EXPECT().Get(mock.Anything, mock.Anything).Return([]byte("data"), nil)
+
+				return args{code: "AAXXcys"}
+			},
+			wantErr: true,
+		},
+		{
+			name: "happy case: cache miss and database read success",
+			setup: func(repo *mocks.Mockrepo, cache *mocks.Mockcache) args {
+				cache.EXPECT().Get(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("error occurred"))
+				repo.EXPECT().GetLinkByCode(mock.Anything, mock.Anything).Return(&domain.Link{}, nil)
+				cache.EXPECT().Set(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+				return args{code: "AAXXcys"}
+			},
+			wantErr: false,
+		},
+		{
+			name: "sad case: cache hit",
+			setup: func(_ *mocks.Mockrepo, cache *mocks.Mockcache) args {
+				cache.EXPECT().Get(mock.Anything, mock.Anything).Return([]byte(`{"ID": 1, "ShortCode":"AAXXcys"}`), nil)
+
+				return args{code: "AAXXcys"}
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := mocks.NewMockrepo(t)
+			cache := mocks.NewMockcache(t)
+			s := New(repo, cache)
+			args := tt.setup(repo, cache)
+
+			_, gotErr := s.GetOriginalURL(context.Background(), args.code)
+			if (gotErr != nil) != tt.wantErr {
+				t.Errorf("GetOriginalURL error = %v; wantErr = %v", gotErr, tt.wantErr)
+			}
+		})
+	}
+}

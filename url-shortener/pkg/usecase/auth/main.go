@@ -556,7 +556,7 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 
 	var state oauthState
 
-	err = unmarshalJSONToStruct(ctx, bytes.NewBuffer(val), &state)
+	err = unmarshalJSONToStruct(ctx, bytes.NewReader(val), &state)
 	if err != nil {
 		return nil, errInternalError
 	}

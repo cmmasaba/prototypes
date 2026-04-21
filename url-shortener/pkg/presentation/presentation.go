@@ -235,8 +235,10 @@ func SetupRoutes(
 
 			r.Route("/shorten", func(r chi.Router) {
 				r.Use(OptionalAuthMiddleware(auth))
+				r.Use(httprate.LimitByIP(50, 1*time.Minute))
 
-				r.Post("/", func(_ http.ResponseWriter, _ *http.Request) {})
+				r.Post("/", handlers.ShortenURL)
+				r.Get("/{code}", handlers.RedirectToOriginalURL)
 			})
 
 			r.Route("/links", func(r chi.Router) {

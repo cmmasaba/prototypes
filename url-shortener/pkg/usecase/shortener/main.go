@@ -2,9 +2,11 @@
 package shortener
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -29,6 +31,8 @@ var (
 	ErrInvalidURIFormat = errors.New("invalid url string provided")
 	ErrURLTooLong       = errors.New("url length exceeds maximum length of 2048 characters")
 	errInternalError    = errors.New("internal error")
+	ErrURLNotFound      = errors.New("url matching short link not found")
+	ErrURLExpired       = errors.New("short link has expired")
 
 	serviceURL = helpers.MustGetEnvVar("SERVICE_BASE_URL")
 )
@@ -160,7 +164,7 @@ func (s *UsecaseImpl) ShortenURL(ctx context.Context, input *dto.ShortenURLInput
 		link, err := s.repo.CreateShortLink(ctx, data)
 		if err != nil {
 			telemetry.RecordError(span, err)
-			slog.ErrorContext(ctx, "save short code failed", "err", err)
+			slog.ErrorContext(ctx, "create short code failed", "err", err)
 
 			return nil, errInternalError
 		}
@@ -181,7 +185,58 @@ func (s *UsecaseImpl) ShortenURL(ctx context.Context, input *dto.ShortenURLInput
 	return nil, errInternalError
 }
 
-func (s *UsecaseImpl) DecodeURL(ctx context.Context) {
-	_, span := telemetry.Trace(ctx, packageName, "DecodeURL")
+// GetOriginalURL returns the original URL for the given short code.
+func (s *UsecaseImpl) GetOriginalURL(ctx context.Context, code string) (string, error) {
+	ctx, span := telemetry.Trace(ctx, packageName, "GetOriginalURL")
 	defer span.End()
+
+	cacheKey := fmt.Sprintf("shortcode:%s", code)
+
+	cached, err := s.cache.Get(ctx, cacheKey)
+	if err == nil {
+		var link domain.Link
+
+		err := json.NewDecoder(bytes.NewReader(cached)).Decode(&link)
+		if err != nil {
+			slog.ErrorContext(ctx, "decode cached link data failed", "err", err)
+			telemetry.RecordError(span, err)
+
+			return "", errInternalError
+		}
+
+		return link.OriginalURL, nil
+	}
+
+	link, err := s.repo.GetLinkByCode(ctx, code)
+	if err != nil {
+		slog.ErrorContext(ctx, "get link by shortcode failed", "err", err)
+		telemetry.RecordError(span, err)
+
+		return "", ErrURLNotFound
+	}
+
+	if time.Now().After(*link.ExpiresAt) {
+		slog.ErrorContext(ctx, "short link expired", "code", code)
+
+		return "", ErrURLExpired
+	}
+
+	var b bytes.Buffer
+
+	// Shouldn't fail on error since cache is an optimization.
+	err = json.NewEncoder(&b).Encode(link)
+	if err != nil {
+		slog.ErrorContext(ctx, "encode link data to bytes failed", "err", err)
+		telemetry.RecordError(span, err)
+
+		return link.OriginalURL, nil
+	}
+
+	err = s.cache.Set(ctx, cacheKey, b, 1*time.Hour)
+	if err != nil {
+		slog.ErrorContext(ctx, "save link data to cache failed", "err", err)
+		telemetry.RecordError(span, err)
+	}
+
+	return link.OriginalURL, nil
 }

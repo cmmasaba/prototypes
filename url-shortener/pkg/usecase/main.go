@@ -72,3 +72,7 @@ func (u *Usecase) RequestNewOTP(ctx context.Context, publicUserID, recipient str
 func (u *Usecase) ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error) {
 	return u.shortener.ShortenURL(ctx, input)
 }
+
+func (u *Usecase) GetOriginalURL(ctx context.Context, code string) (string, error) {
+	return u.shortener.GetOriginalURL(ctx, code)
+}

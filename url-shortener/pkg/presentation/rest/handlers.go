@@ -42,6 +42,7 @@ type usecases interface {
 	Logout(ctx context.Context) error
 	RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error
 	ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error)
+	GetOriginalURL(ctx context.Context, code string) (string, error)
 }
 
 type Handlers struct {
@@ -450,4 +451,30 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		telemetry.RecordError(span, err)
 	}
+}
+
+func (h *Handlers) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request) {
+	ctx, span := telemetry.Trace(r.Context(), packageName, "RedirectToOriginalURL")
+	defer span.End()
+
+	code := r.PathValue("code")
+	if len(code) != 7 {
+		http.Error(w, shortener.ErrURLNotFound.Error(), http.StatusNotFound)
+	}
+
+	resp, err := h.usecases.GetOriginalURL(ctx, code)
+	if err != nil {
+		switch {
+		case errors.Is(err, shortener.ErrURLExpired):
+			http.Error(w, err.Error(), http.StatusGone)
+		case errors.Is(err, shortener.ErrURLNotFound):
+			http.Error(w, err.Error(), http.StatusNotFound)
+		default:
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	http.Redirect(w, r, resp, http.StatusFound)
 }
