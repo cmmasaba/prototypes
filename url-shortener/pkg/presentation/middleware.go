@@ -1,6 +1,7 @@
 package presentation
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -87,8 +88,8 @@ func OptionalAuthMiddleware(auth *auth.UsecaseImpl) func(next http.Handler) http
 			// Fall back to access_token cookie (browser clients)
 			if tokenString == "" {
 				cookie, err := r.Cookie("access_token")
-				if err != nil {
-					http.Error(w, "authentication required", http.StatusUnauthorized)
+				if err != nil && !errors.Is(err, http.ErrNoCookie) {
+					http.Error(w, "bad request", http.StatusBadRequest)
 
 					return
 				}

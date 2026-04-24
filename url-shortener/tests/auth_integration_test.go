@@ -571,13 +571,13 @@ func TestTokenRefresh(t *testing.T) {
 			require.Equal(t, http.StatusOK, resp.StatusCode)
 			resp.Body.Close()
 
-			resp = postJSON(
+			resp = postJSON( // nolint: bodyclose
 				t,
 				tt.client,
 				"/api/auth/refresh",
 				nil,
 				map[string]string{"X-Auth-Mode": "cookie"},
-			) // nolint: bodyclose
+			)
 			require.Equal(t, http.StatusOK, resp.StatusCode)
 
 			refreshResp := decodeJSON[dto.RefreshAccessTokenResponse](t, resp)

@@ -43,18 +43,17 @@ const (
 )
 
 var (
-	ErrUserWithEmailExists = errors.New("email already in use")
-	ErrIncompleteOAuth     = errors.New("both oauth_provider and oauth_provider_id are required")
-	ErrInvalidEmailSyntax  = errors.New("invalid email address")
-	ErrInvalidCredentials  = errors.New("invalid credentials")
-	errInternalError       = errors.New("internal server error")
-	ErrInvalidToken        = errors.New("invalid token")
-	ErrExpiredToken        = errors.New("token expired")
-	ErrInvalidOTPCode      = errors.New("invalid otp code, request a new code")
-	ErrExpiredOTPCode      = errors.New("expired otp code, request a new code")
-	ErrIncorrectOTP        = errors.New("incorrect otp, try again")
-	ErrPasswordBreached    = errors.New("oops the input password was found in a breach, try another password")
-	ErrAccountLocked       = errors.New("too many failed login attempts, try again later")
+	ErrIncompleteOAuth    = errors.New("both oauth_provider and oauth_provider_id are required")
+	ErrInvalidEmailSyntax = errors.New("invalid email address")
+	ErrInvalidCredentials = errors.New("invalid credentials")
+	errInternalError      = errors.New("internal server error")
+	ErrInvalidToken       = errors.New("invalid token")
+	ErrExpiredToken       = errors.New("token expired")
+	ErrInvalidOTPCode     = errors.New("invalid otp code, request a new code")
+	ErrExpiredOTPCode     = errors.New("expired otp code, request a new code")
+	ErrIncorrectOTP       = errors.New("incorrect otp, try again")
+	ErrPasswordBreached   = errors.New("oops the input password was found in a breach, try another password")
+	ErrAccountLocked      = errors.New("too many failed login attempts, try again later")
 
 	oauthCacheKey = "oauth:%s"
 
@@ -119,6 +118,7 @@ type UsecaseImpl struct {
 type oauthState struct {
 	Verifier string
 	Provider dto.OAuthProvider
+	ReturnTo string
 }
 
 type googleOAuthUserInfo struct {
@@ -494,7 +494,7 @@ func (u *UsecaseImpl) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) 
 }
 
 // InitOAuthFlow implements the OAuth flow for Google
-func (u *UsecaseImpl) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error) {
+func (u *UsecaseImpl) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider, returnTo string) (string, error) {
 	_, span := telemetry.Trace(ctx, packageName, "InitOAuthFlow")
 	defer span.End()
 
@@ -504,7 +504,11 @@ func (u *UsecaseImpl) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvi
 	verification := oauth2.GenerateVerifier()
 	redirectURL := config.AuthCodeURL("state", oauth2.AccessTypeOffline, oauth2.S256ChallengeOption(verification))
 
-	state := oauthState{Verifier: verification}
+	state := oauthState{
+		Verifier: verification,
+		ReturnTo: returnTo,
+		Provider: provider,
+	}
 
 	var (
 		b        bytes.Buffer
@@ -540,7 +544,7 @@ func (u *UsecaseImpl) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvi
 }
 
 // OAuthFlowCallback handles the OAuth callback from Google and creates the user
-func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, error) {
+func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, string, error) {
 	ctx, span := telemetry.Trace(ctx, packageName, "OAuthFlowCallback")
 	defer span.End()
 
@@ -551,14 +555,14 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 		slog.ErrorContext(ctx, "get oauth state failed", "err", err)
 		telemetry.RecordError(span, err)
 
-		return nil, errInternalError
+		return nil, "", errInternalError
 	}
 
 	var state oauthState
 
 	err = unmarshalJSONToStruct(ctx, bytes.NewReader(val), &state)
 	if err != nil {
-		return nil, errInternalError
+		return nil, "", errInternalError
 	}
 
 	cfg := buildOAuthConfig(state.Provider)
@@ -568,7 +572,7 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 		slog.ErrorContext(ctx, "token exhange for provider failed", "err", err, "provider", state.Provider)
 		telemetry.RecordError(span, err)
 
-		return nil, errInternalError
+		return nil, "", errInternalError
 	}
 
 	client := cfg.Client(ctx, t)
@@ -579,19 +583,19 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 	case dto.OAuthProviderGoogle:
 		userInfo, err := u.getGoogleOAuthUserInfo(ctx, client)
 		if err != nil {
-			return nil, errInternalError
+			return nil, "", errInternalError
 		}
 
 		user, err = u.getOrCreateOAuthUser(ctx, userInfo.Email, state.Provider.String(), userInfo.ID)
 		if err != nil {
 			slog.ErrorContext(ctx, "getOrCreateOAuthUser failed", "err", err)
 
-			return nil, errInternalError
+			return nil, "", errInternalError
 		}
 	case dto.OAuthProviderGithub:
 		userInfo, err := u.getGithubOAuthUserInfo(ctx, client)
 		if err != nil {
-			return nil, errInternalError
+			return nil, "", errInternalError
 		}
 
 		userID := strconv.Itoa(int(userInfo.ID))
@@ -600,13 +604,13 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 		if err != nil {
 			slog.ErrorContext(ctx, "create user github oauth flow failed", "err", err)
 
-			return nil, errInternalError
+			return nil, "", errInternalError
 		}
 	}
 
 	accessToken, refreshToken, err := u.generateAuthTokens(ctx, user)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	accessTokenTTL, _ := strconv.Atoi(helpers.MustGetEnvVar("ACCESS_TOKEN_TTL"))
@@ -620,7 +624,7 @@ func (u *UsecaseImpl) OAuthFlowCallback(ctx context.Context, origin, code string
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		ExpiresIn:    int64(accessTokenTTL),
-	}, nil
+	}, state.ReturnTo, nil
 }
 
 func (u UsecaseImpl) recordFailedLogin(ctx context.Context, userID int64, attempt *domain.LoginAttempt) {

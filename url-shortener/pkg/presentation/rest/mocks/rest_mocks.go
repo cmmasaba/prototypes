@@ -106,6 +106,72 @@ func (_c *Mockusecases_CreateUserEmailPassword_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
+// GetOriginalURL provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) GetOriginalURL(ctx context.Context, code string) (string, error) {
+	ret := _mock.Called(ctx, code)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetOriginalURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, code)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, code)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, code)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockusecases_GetOriginalURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetOriginalURL'
+type Mockusecases_GetOriginalURL_Call struct {
+	*mock.Call
+}
+
+// GetOriginalURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - code string
+func (_e *Mockusecases_Expecter) GetOriginalURL(ctx interface{}, code interface{}) *Mockusecases_GetOriginalURL_Call {
+	return &Mockusecases_GetOriginalURL_Call{Call: _e.mock.On("GetOriginalURL", ctx, code)}
+}
+
+func (_c *Mockusecases_GetOriginalURL_Call) Run(run func(ctx context.Context, code string)) *Mockusecases_GetOriginalURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_GetOriginalURL_Call) Return(s string, err error) *Mockusecases_GetOriginalURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Mockusecases_GetOriginalURL_Call) RunAndReturn(run func(ctx context.Context, code string) (string, error)) *Mockusecases_GetOriginalURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // HealthCheck provides a mock function for the type Mockusecases
 func (_mock *Mockusecases) HealthCheck(ctx context.Context) map[string]bool {
 	ret := _mock.Called(ctx)
@@ -160,8 +226,8 @@ func (_c *Mockusecases_HealthCheck_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // InitOAuthFlow provides a mock function for the type Mockusecases
-func (_mock *Mockusecases) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error) {
-	ret := _mock.Called(ctx, provider)
+func (_mock *Mockusecases) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider, returnTo string) (string, error) {
+	ret := _mock.Called(ctx, provider, returnTo)
 
 	if len(ret) == 0 {
 		panic("no return value specified for InitOAuthFlow")
@@ -169,16 +235,16 @@ func (_mock *Mockusecases) InitOAuthFlow(ctx context.Context, provider dto.OAuth
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider) (string, error)); ok {
-		return returnFunc(ctx, provider)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider, string) (string, error)); ok {
+		return returnFunc(ctx, provider, returnTo)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider) string); ok {
-		r0 = returnFunc(ctx, provider)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.OAuthProvider, string) string); ok {
+		r0 = returnFunc(ctx, provider, returnTo)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.OAuthProvider) error); ok {
-		r1 = returnFunc(ctx, provider)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.OAuthProvider, string) error); ok {
+		r1 = returnFunc(ctx, provider, returnTo)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -193,11 +259,12 @@ type Mockusecases_InitOAuthFlow_Call struct {
 // InitOAuthFlow is a helper method to define mock.On call
 //   - ctx context.Context
 //   - provider dto.OAuthProvider
-func (_e *Mockusecases_Expecter) InitOAuthFlow(ctx interface{}, provider interface{}) *Mockusecases_InitOAuthFlow_Call {
-	return &Mockusecases_InitOAuthFlow_Call{Call: _e.mock.On("InitOAuthFlow", ctx, provider)}
+//   - returnTo string
+func (_e *Mockusecases_Expecter) InitOAuthFlow(ctx interface{}, provider interface{}, returnTo interface{}) *Mockusecases_InitOAuthFlow_Call {
+	return &Mockusecases_InitOAuthFlow_Call{Call: _e.mock.On("InitOAuthFlow", ctx, provider, returnTo)}
 }
 
-func (_c *Mockusecases_InitOAuthFlow_Call) Run(run func(ctx context.Context, provider dto.OAuthProvider)) *Mockusecases_InitOAuthFlow_Call {
+func (_c *Mockusecases_InitOAuthFlow_Call) Run(run func(ctx context.Context, provider dto.OAuthProvider, returnTo string)) *Mockusecases_InitOAuthFlow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -207,9 +274,14 @@ func (_c *Mockusecases_InitOAuthFlow_Call) Run(run func(ctx context.Context, pro
 		if args[1] != nil {
 			arg1 = args[1].(dto.OAuthProvider)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -220,7 +292,7 @@ func (_c *Mockusecases_InitOAuthFlow_Call) Return(s string, err error) *Mockusec
 	return _c
 }
 
-func (_c *Mockusecases_InitOAuthFlow_Call) RunAndReturn(run func(ctx context.Context, provider dto.OAuthProvider) (string, error)) *Mockusecases_InitOAuthFlow_Call {
+func (_c *Mockusecases_InitOAuthFlow_Call) RunAndReturn(run func(ctx context.Context, provider dto.OAuthProvider, returnTo string) (string, error)) *Mockusecases_InitOAuthFlow_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -345,7 +417,7 @@ func (_c *Mockusecases_Logout_Call) RunAndReturn(run func(ctx context.Context) e
 }
 
 // OAuthFlowCallback provides a mock function for the type Mockusecases
-func (_mock *Mockusecases) OAuthFlowCallback(ctx context.Context, origin string, code string) (*dto.AuthResponse, error) {
+func (_mock *Mockusecases) OAuthFlowCallback(ctx context.Context, origin string, code string) (*dto.AuthResponse, string, error) {
 	ret := _mock.Called(ctx, origin, code)
 
 	if len(ret) == 0 {
@@ -353,8 +425,9 @@ func (_mock *Mockusecases) OAuthFlowCallback(ctx context.Context, origin string,
 	}
 
 	var r0 *dto.AuthResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*dto.AuthResponse, error)); ok {
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (*dto.AuthResponse, string, error)); ok {
 		return returnFunc(ctx, origin, code)
 	}
 	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) *dto.AuthResponse); ok {
@@ -364,12 +437,17 @@ func (_mock *Mockusecases) OAuthFlowCallback(ctx context.Context, origin string,
 			r0 = ret.Get(0).(*dto.AuthResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) string); ok {
 		r1 = returnFunc(ctx, origin, code)
 	} else {
-		r1 = ret.Error(1)
+		r1 = ret.Get(1).(string)
 	}
-	return r0, r1
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string) error); ok {
+		r2 = returnFunc(ctx, origin, code)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
 }
 
 // Mockusecases_OAuthFlowCallback_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OAuthFlowCallback'
@@ -408,12 +486,12 @@ func (_c *Mockusecases_OAuthFlowCallback_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *Mockusecases_OAuthFlowCallback_Call) Return(authResponse *dto.AuthResponse, err error) *Mockusecases_OAuthFlowCallback_Call {
-	_c.Call.Return(authResponse, err)
+func (_c *Mockusecases_OAuthFlowCallback_Call) Return(authResponse *dto.AuthResponse, s string, err error) *Mockusecases_OAuthFlowCallback_Call {
+	_c.Call.Return(authResponse, s, err)
 	return _c
 }
 
-func (_c *Mockusecases_OAuthFlowCallback_Call) RunAndReturn(run func(ctx context.Context, origin string, code string) (*dto.AuthResponse, error)) *Mockusecases_OAuthFlowCallback_Call {
+func (_c *Mockusecases_OAuthFlowCallback_Call) RunAndReturn(run func(ctx context.Context, origin string, code string) (*dto.AuthResponse, string, error)) *Mockusecases_OAuthFlowCallback_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -551,6 +629,74 @@ func (_c *Mockusecases_RequestNewOTP_Call) Return(err error) *Mockusecases_Reque
 }
 
 func (_c *Mockusecases_RequestNewOTP_Call) RunAndReturn(run func(ctx context.Context, publicUserID string, recipient string, purpose dto.OTPPurpose) error) *Mockusecases_RequestNewOTP_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ShortenURL provides a mock function for the type Mockusecases
+func (_mock *Mockusecases) ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error) {
+	ret := _mock.Called(ctx, input)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ShortenURL")
+	}
+
+	var r0 *dto.ShortenURLResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *dto.ShortenURLInput) (*dto.ShortenURLResponse, error)); ok {
+		return returnFunc(ctx, input)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *dto.ShortenURLInput) *dto.ShortenURLResponse); ok {
+		r0 = returnFunc(ctx, input)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ShortenURLResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *dto.ShortenURLInput) error); ok {
+		r1 = returnFunc(ctx, input)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Mockusecases_ShortenURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ShortenURL'
+type Mockusecases_ShortenURL_Call struct {
+	*mock.Call
+}
+
+// ShortenURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - input *dto.ShortenURLInput
+func (_e *Mockusecases_Expecter) ShortenURL(ctx interface{}, input interface{}) *Mockusecases_ShortenURL_Call {
+	return &Mockusecases_ShortenURL_Call{Call: _e.mock.On("ShortenURL", ctx, input)}
+}
+
+func (_c *Mockusecases_ShortenURL_Call) Run(run func(ctx context.Context, input *dto.ShortenURLInput)) *Mockusecases_ShortenURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *dto.ShortenURLInput
+		if args[1] != nil {
+			arg1 = args[1].(*dto.ShortenURLInput)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Mockusecases_ShortenURL_Call) Return(shortenURLResponse *dto.ShortenURLResponse, err error) *Mockusecases_ShortenURL_Call {
+	_c.Call.Return(shortenURLResponse, err)
+	return _c
+}
+
+func (_c *Mockusecases_ShortenURL_Call) RunAndReturn(run func(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error)) *Mockusecases_ShortenURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

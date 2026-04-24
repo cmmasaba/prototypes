@@ -20,7 +20,7 @@ const (
 	packageName = "github.com/cmmasaba/prototypes/urlshortener/pkg/presentation/rest"
 )
 
-var ErrInvalidRequestBody = errors.New("invalid request body")
+var ErrBadRequestBody = errors.New("bad request body")
 
 const authModeHeader = "X-Auth-Mode"
 
@@ -37,8 +37,8 @@ type usecases interface {
 	Login(ctx context.Context, input *dto.LoginInput) (*dto.OTPRequiredResponse, error)
 	RefreshAccessToken(ctx context.Context, refreshToken string) (*dto.RefreshAccessTokenResponse, error)
 	VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (*dto.AuthResponse, error)
-	OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, error)
-	InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error)
+	OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, string, error)
+	InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider, returnTo string) (string, error)
 	Logout(ctx context.Context) error
 	RequestNewOTP(ctx context.Context, publicUserID, recipient string, purpose dto.OTPPurpose) error
 	ShortenURL(ctx context.Context, input *dto.ShortenURLInput) (*dto.ShortenURLResponse, error)
@@ -67,13 +67,13 @@ func decodeAndValidate[T any](ctx context.Context, r *http.Request, w http.Respo
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		slog.ErrorContext(ctx, "decode request body failed", "err", err)
 		telemetry.RecordError(span, err)
-		http.Error(w, ErrInvalidRequestBody.Error(), http.StatusBadRequest)
+		http.Error(w, ErrBadRequestBody.Error(), http.StatusBadRequest)
 
 		return nil, false
 	}
 
 	if err := helpers.Validate(input); err != nil {
-		slog.ErrorContext(ctx, "validate input failed", "err", err)
+		slog.ErrorContext(ctx, "input data validation failed", "err", err)
 		telemetry.RecordError(span, err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
@@ -112,10 +112,6 @@ func (h *Handlers) CreateUserEmailPassword(w http.ResponseWriter, r *http.Reques
 	resp, err := h.usecases.CreateUserEmailPassword(ctx, input)
 	if err != nil {
 		switch {
-		case errors.Is(err, auth.ErrUserWithEmailExists):
-			http.Error(w, err.Error(), http.StatusConflict)
-		case errors.Is(err, auth.ErrIncompleteOAuth):
-			http.Error(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, auth.ErrInvalidEmailSyntax):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		case errors.Is(err, auth.ErrPasswordBreached):
@@ -301,14 +297,19 @@ func (h *Handlers) InitGoogleOAuth(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "InitGoogleOAuth")
 	defer span.End()
 
-	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGoogle)
+	returnTo := r.URL.Query().Get("return_to")
+	if returnTo == "" {
+		returnTo = "/"
+	}
+
+	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGoogle, returnTo)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 
 		return
 	}
 
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
 // GoogleOAuthCallback handles the OAuth callback from Google.
@@ -316,27 +317,21 @@ func (h *Handlers) GoogleOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "GoogleOAuthCallback")
 	defer span.End()
 
-	resp, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
+	resp, returnTo, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 
 		return
 	}
 
-	if useCookieAuth(r) {
-		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
-
-		resp.AccessToken = ""
-		resp.RefreshToken = ""
-	}
+	// OAuth flow will only be used by web clients, so automatically assign cookies.
+	SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+	resp.AccessToken = ""
+	resp.RefreshToken = ""
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(resp)
-	if err != nil {
-		telemetry.RecordError(span, err)
-	}
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 }
 
 // InitGithubOAuth initiates the Google OAuth flow and redirects the user to the consent page.
@@ -344,14 +339,19 @@ func (h *Handlers) InitGithubOAuth(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "InitGithubOAuth")
 	defer span.End()
 
-	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGithub)
+	returnTo := r.URL.Query().Get("return_to")
+	if returnTo == "" {
+		returnTo = "/"
+	}
+
+	redirectURL, err := h.usecases.InitOAuthFlow(ctx, dto.OAuthProviderGithub, returnTo)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 
 		return
 	}
 
-	http.Redirect(w, r, redirectURL, http.StatusFound)
+	http.Redirect(w, r, redirectURL, http.StatusTemporaryRedirect)
 }
 
 // GithubOAuthCallback handles the OAuth callback from GitHub.
@@ -359,27 +359,21 @@ func (h *Handlers) GithubOAuthCallback(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "GithubOAuthCallback")
 	defer span.End()
 
-	resp, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
+	resp, returnTo, err := h.usecases.OAuthFlowCallback(ctx, r.URL.String(), r.FormValue("code"))
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 
 		return
 	}
 
-	if useCookieAuth(r) {
-		SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
-
-		resp.AccessToken = ""
-		resp.RefreshToken = ""
-	}
+	// OAuth flow will only be used by web clients, so automatically assign cookies.
+	SetAuthCookies(w, resp.AccessToken, resp.RefreshToken)
+	resp.AccessToken = ""
+	resp.RefreshToken = ""
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
-	err = json.NewEncoder(w).Encode(resp)
-	if err != nil {
-		telemetry.RecordError(span, err)
-	}
+	http.Redirect(w, r, returnTo, http.StatusSeeOther)
 }
 
 // Logout revokes all refresh tokens for the user and clears auth cookies.
@@ -404,6 +398,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RequestNewOTP triggers sending new otp to the user.
 func (h *Handlers) RequestNewOTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "RequestNewOTP")
 	defer span.End()
@@ -413,7 +408,8 @@ func (h *Handlers) RequestNewOTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.usecases.RequestNewOTP(ctx, input.UserPublicID, input.Recipient, input.Purpose); err != nil {
+	err := h.usecases.RequestNewOTP(ctx, input.UserPublicID, input.Recipient, input.Purpose)
+	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 
 		return
@@ -453,6 +449,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RedirectToOriginalURL redirect to the original URL matching the shortened URL.
 func (h *Handlers) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request) {
 	ctx, span := telemetry.Trace(r.Context(), packageName, "RedirectToOriginalURL")
 	defer span.End()
@@ -460,6 +457,8 @@ func (h *Handlers) RedirectToOriginalURL(w http.ResponseWriter, r *http.Request)
 	code := r.PathValue("code")
 	if len(code) != 7 {
 		http.Error(w, shortener.ErrURLNotFound.Error(), http.StatusNotFound)
+
+		return
 	}
 
 	resp, err := h.usecases.GetOriginalURL(ctx, code)

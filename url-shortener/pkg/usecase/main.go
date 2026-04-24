@@ -53,11 +53,11 @@ func (u *Usecase) VerifyOTP(ctx context.Context, input *dto.VerifyOTPInput) (*dt
 	return u.auth.VerifyOTP(ctx, input)
 }
 
-func (u *Usecase) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider) (string, error) {
-	return u.auth.InitOAuthFlow(ctx, provider)
+func (u *Usecase) InitOAuthFlow(ctx context.Context, provider dto.OAuthProvider, returnTo string) (string, error) {
+	return u.auth.InitOAuthFlow(ctx, provider, returnTo)
 }
 
-func (u *Usecase) OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, error) {
+func (u *Usecase) OAuthFlowCallback(ctx context.Context, origin, code string) (*dto.AuthResponse, string, error) {
 	return u.auth.OAuthFlowCallback(ctx, origin, code)
 }
 
